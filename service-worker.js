@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v2-desktop-style';
+const CACHE_NAME = 'qgi-lab-v3-apple-style';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

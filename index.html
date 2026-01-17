@@ -12,8 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Painel QGI">
   
-  <!-- Ícones para Navegador e Mobile -->
-  <!-- Usando CDN confiável para garantir que o ícone carregue -->
+  <!-- Ícones -->
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4341/4341146.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4341/4341146.png">
 
@@ -53,8 +52,6 @@
   
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
-    
-    /* Scrollbar elegante */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #1e293b; }
     ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -81,7 +78,6 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
-    // --- ÍCONES (Mantidos) ---
     const Icon = ({ path, size = 24, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
     );
@@ -114,7 +110,6 @@
       Bell: (props) => <Icon {...props} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
     };
 
-    // Dados Iniciais (MANTIDOS)
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
@@ -124,8 +119,8 @@
     ];
 
     const INITIAL_STAFF = [
-      { id: 's1', name: 'Carlos (Técnico)', role: 'Tecnico', tasks: [{ id: 't1', text: 'pHmetria' }], qualityTasks: [] },
-      { id: 's2', name: 'Ana (Técnica)', role: 'Tecnico', tasks: [], qualityTasks: [] },
+      { id: 's1', name: 'Carlos (Técnico)', role: 'Tecnico', tasks: [{ id: 't1', text: 'pHmetria' }], qualityTasks: [{ id: 'q1', text: 'Verificação Balanças' }] },
+      { id: 's2', name: 'Ana (Técnica)', role: 'Tecnico', tasks: [{ id: 't3', text: 'Titulação' }], qualityTasks: [] },
     ];
 
     const INITIAL_ARMY_REAGENTS = [
@@ -146,10 +141,8 @@
       { id: 'a15', name: 'Trietanolamina', quantity: 0, unit: 'mL' },
     ];
 
-    // COMPONENTE PRINCIPAL
     function QGIDashboard() {
       const [currentView, setCurrentView] = useState('home');
-
       const renderView = () => {
         switch (currentView) {
           case 'reagents': return <ReagentManager onBack={() => setCurrentView('home')} />;
@@ -158,163 +151,78 @@
           default: return <HomeDashboard onNavigate={setCurrentView} />;
         }
       };
-
       return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">{renderView()}</div>;
     }
 
-    // DASHBOARD ESTILO APPLE TV (LAYOUT RESTAURADO)
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
 
-      useEffect(() => {
-        const timer = setInterval(() => setCurrentDate(new Date()), 1000);
-        return () => clearInterval(timer);
-      }, []);
+      useEffect(() => { const t = setInterval(() => setCurrentDate(new Date()), 1000); return () => clearInterval(t); }, []);
 
       const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => {
-          setPermission(perm);
-          if(perm === 'granted') checkAndNotify();
-        });
+        Notification.requestPermission().then(perm => { setPermission(perm); if(perm === 'granted') checkAndNotify(); });
       };
 
       const checkAndNotify = () => {
         const savedReagents = localStorage.getItem('qgi_reagents');
         const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
         const now = new Date();
-        
-        let expired = 0;
-        let expiring = 0;
-
+        let expired = 0, expiring = 0;
         reagentsList.forEach(r => {
-          const expiryDate = new Date(r.expiryDate);
-          const diffTime = expiryDate.getTime() - now.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays < 0) expired++;
-          else if (diffDays <= 30) expiring++;
+          if (r.type === 'history') return;
+          const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
         });
-
-        const dayOfMonth = now.getDate();
-        const isFirstWeek = dayOfMonth <= 7;
-
+        const isFirstWeek = now.getDate() <= 7;
         setNotifications({ expired, expiring, armyReport: isFirstWeek });
-
         if (Notification.permission === 'granted') {
-          if (expired > 0) new Notification("Atenção QGI", { body: `Existem ${expired} itens vencidos no estoque!` });
-          if (isFirstWeek) new Notification("Exército", { body: "Semana de relatório de controlados!" });
+          if (expired > 0) new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/4341/4341146.png' });
+          if (isFirstWeek) new Notification("Exército", { body: "Semana de relatório!", icon: 'https://cdn-icons-png.flaticon.com/512/4341/4341146.png' });
         }
       };
-
       useEffect(() => { checkAndNotify(); }, []);
 
-      const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 relative">
-          
-          {/* Relógio Topo */}
-          <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none">
-            <div className="bg-slate-800/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50 shadow-lg text-slate-300 text-sm font-medium flex items-center gap-3 animate-fade-in-down">
-              <span className="capitalize">{formattedDate}</span>
-              <div className="w-px h-4 bg-slate-600"></div>
-              <div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono">
-                <Icons.Clock size={14} /> {formattedTime}
-              </div>
+          <div className="absolute top-6 flex justify-center w-full pointer-events-none">
+            <div className="bg-slate-800/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50 shadow-lg text-slate-300 text-sm font-medium flex items-center gap-3">
+              <span className="capitalize">{formattedDate}</span><div className="w-px h-4 bg-slate-600"></div><div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono"><Icons.Clock size={14} /> {formattedTime}</div>
             </div>
           </div>
-
-          <header className="mb-12 text-center animate-fade-in-down mt-12">
-            <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm">
-              <Icons.FlaskConical size={64} className="text-blue-400" />
-            </div>
-            <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">
-              Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span>
-            </h1>
+          <header className="mb-12 text-center mt-12 animate-fade-in-down">
+            <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
+            <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
             <p className="text-slate-400 text-xl font-light">Gestão Integrada de Química Geral e Inorgânica</p>
-            
-            {permission !== 'granted' && (
-              <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105">
-                <Icons.Bell size={14} /> Ativar Notificações
-              </button>
-            )}
+            {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
-
-          {/* GRID RESTAURADO */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-            <DashboardCard 
-              title="Reagentes & Padrões" 
-              description="Controle de validade, estoque e histórico de descarte."
-              icon={<Icons.Beaker size={40} />}
-              color="bg-emerald-500"
-              onClick={() => onNavigate('reagents')}
-              badges={[
-                notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null,
-                notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null
-              ]}
-            />
-            
-            <DashboardCard 
-              title="Distribuição & Equipe" 
-              description="Gestão de ensaios, tarefas de qualidade e equipe técnica."
-              icon={<Icons.ClipboardList size={40} />}
-              color="bg-indigo-500"
-              onClick={() => onNavigate('tasks')}
-            />
-
-            <DashboardCard 
-              title="Controlados (Exército)" 
-              description="Relatório mensal de movimentação de reagentes controlados."
-              icon={<Icons.ShieldAlert size={40} />}
-              color="bg-red-600"
-              onClick={() => onNavigate('army')}
-              badges={[
-                notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null
-              ]}
-            />
-
+            <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico de descarte." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
+            <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe técnica." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
+            <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
-              <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110">
-                <Icons.Plus size={32} className="text-slate-400" />
-              </div>
+              <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
               <p className="text-sm text-slate-500 mt-2 text-center">Espaço reservado para<br/>expansão futura.</p>
             </div>
           </div>
-          
-          <footer className="mt-12 text-slate-600 text-sm font-medium">
-            Sistema QGI v2.0 • PWA Enabled
-          </footer>
+          <footer className="mt-12 text-slate-600 text-sm font-medium">Sistema QGI v2.1 • PWA Enabled</footer>
         </div>
       );
     }
 
     function DashboardCard({ title, description, icon, color, onClick, badges }) {
       return (
-        <button 
-          onClick={onClick}
-          className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none focus:ring-4 focus:ring-blue-500/30 text-left overflow-hidden"
-        >
+        <button onClick={onClick} className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none text-left overflow-hidden">
           <div className={`absolute top-0 right-0 w-32 h-32 ${color} opacity-20 blur-[60px] rounded-full group-hover:opacity-30 transition-opacity duration-500`}></div>
-          
           <div className="w-full flex justify-between items-start">
-            <div className={`p-4 rounded-2xl bg-slate-700/30 text-white mb-4 group-hover:scale-110 transition-transform duration-500 shadow-inner ring-1 ring-white/10`}>
-              {icon}
-            </div>
-            
-            {badges && badges.some(b => b) && (
-              <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
-                {badges.filter(b => b).map((badge, idx) => (
-                  <span key={idx} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold shadow-lg ${badge.color}`}>
-                    {badge.text}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className={`p-4 rounded-2xl bg-slate-700/30 text-white mb-4 group-hover:scale-110 transition-transform duration-500 shadow-inner ring-1 ring-white/10`}>{icon}</div>
+            {badges && badges.some(b => b) && <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-right-4 duration-500">{badges.filter(b => b).map((badge, idx) => <span key={idx} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold shadow-lg ${badge.color}`}>{badge.text}</span>)}</div>}
           </div>
-          
           <div className="relative z-10 w-full mt-auto">
             <h3 className="text-2xl font-bold text-white mb-2 tracking-wide group-hover:text-blue-300 transition-colors drop-shadow-md">{title}</h3>
             <p className="text-slate-400 font-medium leading-relaxed group-hover:text-slate-300 transition-colors">{description}</p>
@@ -323,17 +231,9 @@
       );
     }
 
-    // --- REAGENT MANAGER (Lógica Mantida) ---
     function ReagentManager({ onBack }) {
-      const [reagents, setReagents] = useState(() => {
-        const saved = localStorage.getItem('qgi_reagents');
-        const parsed = saved ? JSON.parse(saved) : INITIAL_REAGENTS;
-        return parsed.map(r => r.type ? r : { ...r, type: 'reagent' });
-      });
-      const [history, setHistory] = useState(() => {
-        const saved = localStorage.getItem('qgi_reagents_history');
-        return saved ? JSON.parse(saved) : [];
-      });
+      const [reagents, setReagents] = useState(() => { const saved = localStorage.getItem('qgi_reagents'); const parsed = saved ? JSON.parse(saved) : INITIAL_REAGENTS; return parsed.map(r => r.type ? r : { ...r, type: 'reagent' }); });
+      const [history, setHistory] = useState(() => { const saved = localStorage.getItem('qgi_reagents_history'); return saved ? JSON.parse(saved) : []; });
       const [searchTerm, setSearchTerm] = useState('');
       const [activeTab, setActiveTab] = useState('reagent');
       const [showAddModal, setShowAddModal] = useState(false);
@@ -345,13 +245,10 @@
       useEffect(() => { localStorage.setItem('qgi_reagents_history', JSON.stringify(history)); }, [history]);
 
       const getStatus = (dateStr) => {
-        const today = new Date();
-        const expiry = new Date(dateStr);
-        const diffTime = expiry.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const today = new Date(); const expiry = new Date(dateStr); const diffTime = expiry.getTime() - today.getTime(); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'VENCIDO' };
         if (diffDays < 30) return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', label: 'VENCE EM BREVE' };
-        return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'DENTRO DA VALIDADE' };
+        return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'OK' };
       };
 
       const filteredList = useMemo(() => {
@@ -366,38 +263,16 @@
         return list;
       }, [history, searchTerm]);
 
-      const getSuggestionBadge = (item, list) => {
-        if (activeTab === 'history') return null;
-        const duplicates = list.filter(r => r.name.toLowerCase() === item.name.toLowerCase());
-        if (duplicates.length > 1) {
-          const isFirst = duplicates[0].id === item.id;
-          if (isFirst) {
-            return (
-              <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-blue-500 text-white animate-pulse">
-                <Icons.CheckCircle size={10} /> USAR ESTE
-              </span>
-            );
-          }
-        }
-        return null;
-      };
-
       const handleAddReagent = (e) => {
-        e.preventDefault();
-        if (!newReagent.name || !newReagent.expiryDate) return;
+        e.preventDefault(); if (!newReagent.name || !newReagent.expiryDate) return;
         const item = { ...newReagent, id: Date.now().toString(), type: newReagent.type, brand: newReagent.brand || 'N/A', lot: newReagent.lot || 'N/A' };
-        setReagents([...reagents, item]);
-        setShowAddModal(false);
-        setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent' });
+        setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent' });
       };
 
       const executeDelete = (reason) => {
         if (!itemToDelete) return;
         const historyItem = { ...itemToDelete, removedDate: new Date().toISOString(), removalReason: reason };
-        setHistory([historyItem, ...history]);
-        setReagents(reagents.filter(r => r.id !== itemToDelete.id));
-        setShowDeleteModal(false);
-        setItemToDelete(null);
+        setHistory([historyItem, ...history]); setReagents(reagents.filter(r => r.id !== itemToDelete.id)); setShowDeleteModal(false); setItemToDelete(null);
       };
 
       return (
@@ -405,31 +280,21 @@
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div className="flex items-center gap-4">
               <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
-              <div>
-                <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Beaker className="text-emerald-400" /> Reagentes & Padrões</h2>
-                <p className="text-slate-400 text-sm">Gerencie estoque, validades e descarte.</p>
-              </div>
+              <div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Beaker className="text-emerald-400" /> Reagentes & Padrões</h2><p className="text-slate-400 text-sm">Gerencie estoque, validades e descarte.</p></div>
             </div>
             <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">
               {['reagent', 'standard', 'history'].map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === tab ? (tab === 'history' ? 'bg-slate-700 text-white shadow' : (tab === 'reagent' ? 'bg-emerald-600 text-white shadow' : 'bg-blue-600 text-white shadow')) : 'text-slate-400 hover:text-white'}`}>
-                  {tab === 'history' && <Icons.History size={16} />}
-                  {tab === 'reagent' ? 'Reagentes' : (tab === 'standard' ? 'Padrões' : 'Histórico')}
+                  {tab === 'history' && <Icons.History size={16} />}{tab === 'reagent' ? 'Reagentes' : (tab === 'standard' ? 'Padrões' : 'Histórico')}
                 </button>
               ))}
             </div>
-            {activeTab !== 'history' && (
-              <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all hover:scale-105">
-                <Icons.Plus size={20} /> Novo Item
-              </button>
-            )}
+            {activeTab !== 'history' && <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all hover:scale-105"><Icons.Plus size={20} /> Novo Item</button>}
           </div>
-
           <div className="relative mb-8 max-w-2xl mx-auto">
             <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-
           {activeTab !== 'history' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredList.map((item) => {
@@ -437,21 +302,11 @@
                 return (
                   <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm transition-all hover:bg-slate-800 group`}>
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">
-                          {item.name}
-                          {getSuggestionBadge(item, filteredList)}
-                        </h3>
-                        <p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p>
-                      </div>
-                      <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button>
+                      <div><h3 className="text-xl font-bold text-white">{item.name}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div>
+                      <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button>
                     </div>
-                    {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
-                    {item.type === 'standard' && item.openingDate && (
-                      <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
-                        <Icons.FolderOpen size={14} className="text-blue-400"/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                      </div>
-                    )}
+                    {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300">Uso: {item.usage}</div>}
+                    {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
                     <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50">
                       <div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div>
                       <span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span>
@@ -464,60 +319,31 @@
             <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4 text-right">Data Baixa</th></tr></thead>
-                  <tbody className="divide-y divide-slate-700">
-                    {historyList.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-700/30">
-                        <td className="px-6 py-4 font-medium text-white">{item.name}</td>
-                        <td className="px-6 py-4">{item.brand} - {item.lot}</td>
-                        <td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${item.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{item.removalReason}</span></td>
-                        <td className="px-6 py-4 text-right font-mono text-slate-400">{new Date(item.removedDate).toLocaleDateString('pt-BR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
+                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4 text-right">Data</th></tr></thead>
+                  <tbody className="divide-y divide-slate-700">{historyList.map(i => <tr key={i.id} className="hover:bg-slate-700/30"><td className="px-6 py-4 text-white">{i.name}</td><td className="px-6 py-4">{i.removalReason}</td><td className="px-6 py-4 text-right font-mono">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td></tr>)}</tbody>
                 </table>
               </div>
             </div>
           )}
-
           {showAddModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-in zoom-in duration-200">
+              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4">Novo Item</h3>
                 <form onSubmit={handleAddReagent} className="space-y-4">
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label>
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label>
-                  </div>
+                  <div className="flex gap-4"><label className="flex items-center gap-2 text-slate-300"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} /> Reagente</label><label className="flex items-center gap-2 text-slate-300"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} /> Padrão</label></div>
                   <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" />
-                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>
-                    {newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}
-                  </div>
-                  <div className="flex gap-3 pt-4">
-                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button>
-                    <button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button>
-                  </div>
+                  <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
+                  <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div>
+                  <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div>
                 </form>
               </div>
             </div>
           )}
-
           {showDeleteModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center animate-in zoom-in duration-200">
-                <div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div>
-                <h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3>
-                <p className="text-slate-400 mb-6">Selecione o motivo para remover do estoque.</p>
-                <div className="flex flex-col gap-3">
-                  <button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button>
-                  <button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button>
-                  <button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button>
-                </div>
+              <div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center">
+                <h3 className="text-xl font-bold text-white mb-4">Motivo da Baixa</h3>
+                <div className="flex flex-col gap-3"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium">Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 text-white rounded-xl font-medium">Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400">Cancelar</button></div>
               </div>
             </div>
           )}
@@ -525,15 +351,43 @@
       );
     }
 
-    // --- OUTROS MÓDULOS (Mantidos iguais à versão anterior, apenas estilo ajustado) ---
     function TaskManager({ onBack }) {
-      // (Mesma lógica simplificada para caber no exemplo, mas usando o layout completo se necessário)
       const [staff, setStaff] = useState(() => { const saved = localStorage.getItem('qgi_staff'); return saved ? JSON.parse(saved) : INITIAL_STAFF; });
+      const [activeTab, setActiveTab] = useState('ensaios'); const [isLocked, setIsLocked] = useState(true);
+      const [newTaskText, setNewTaskText] = useState(''); const [selectedStaffId, setSelectedStaffId] = useState(null);
+      const [filterRole, setFilterRole] = useState('Todos');
+      useEffect(() => { localStorage.setItem('qgi_staff', JSON.stringify(staff)); }, [staff]);
+      const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
+      const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
+      const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
       return (
-        <div className="min-h-screen p-12 flex flex-col items-center justify-center">
-          <h2 className="text-3xl text-white mb-4">Módulo de Equipe</h2>
-          <p className="text-slate-400 mb-8">Funcionalidade completa mantida (código omitido para brevidade nesta visualização, mas presente na versão completa).</p>
-          <button onClick={onBack} className="px-6 py-3 bg-slate-700 text-white rounded-xl">Voltar ao Painel</button>
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black">
+          <div className="no-print flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800"><Icons.ArrowLeft size={24} /></button><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ClipboardList className="text-indigo-400" /> Distribuição</h2></div>
+            <div className="flex gap-2 bg-slate-800 p-1 rounded-lg"><button onClick={() => setActiveTab('ensaios')} className={`px-4 py-2 rounded ${activeTab==='ensaios'?'bg-indigo-600 text-white':'text-slate-400'}`}>Ensaios</button><button onClick={() => setActiveTab('qualidade')} className={`px-4 py-2 rounded ${activeTab==='qualidade'?'bg-teal-600 text-white':'text-slate-400'}`}>Qualidade</button></div>
+          </div>
+          <div className="no-print flex justify-between mb-4"><div className="flex gap-2">{['Todos','Tecnico','Estagiario'].map(r=><button key={r} onClick={()=>setFilterRole(r)} className={`px-3 py-1 rounded ${filterRole===r?'bg-slate-700 text-white':'text-slate-500'}`}>{r}</button>)}</div><button onClick={()=>setIsLocked(!isLocked)} className="px-3 py-1 text-slate-400 border border-slate-700 rounded flex gap-2 items-center">{isLocked ? <Icons.Lock size={14}/> : <Icons.Unlock size={14}/>} {isLocked ? 'Travado' : 'Editar'}</button></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 no-print">
+            {filteredStaff.map(person => {
+              const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks;
+              return (
+                <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden backdrop-blur-sm">
+                  <div className="p-4 border-b border-slate-700/50 bg-slate-700/20 flex justify-between items-center"><h3 className="font-bold text-white">{person.name}</h3><span className="text-xs text-slate-400 uppercase">{person.role}</span></div>
+                  <div className="flex-1 p-4 bg-slate-800/20 min-h-[150px]">
+                    <ul className="space-y-2">{currentTasks.map(t => <li key={t.id} className="flex justify-between text-sm text-slate-300 p-2 bg-slate-700/30 rounded">{t.text} {!isLocked && <button onClick={()=>removeTask(person.id, t.id, activeTab==='qualidade'?'quality':'normal')} className="text-red-400"><Icons.Trash2 size={14}/></button>}</li>)}</ul>
+                  </div>
+                  {!isLocked && <div className="p-3 border-t border-slate-700"><input className="w-full bg-slate-900 rounded p-2 text-sm text-white mb-2" placeholder="Nova tarefa..." value={selectedStaffId===person.id?newTaskText:''} onFocus={()=>setSelectedStaffId(person.id)} onChange={e=>setNewTaskText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask(person.id, activeTab==='qualidade'?'quality':'normal')}/><button onClick={()=>addTask(person.id, activeTab==='qualidade'?'quality':'normal')} className="w-full bg-indigo-600 text-white rounded py-1 text-sm">Adicionar</button></div>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="print-only">
+            <h1 className="text-xl font-bold mb-4 uppercase">Relatório de Distribuição - {activeTab}</h1>
+            <table className="print-table">
+              <thead><tr><th>Nome</th><th>Função</th><th>Tarefas</th></tr></thead>
+              <tbody>{filteredStaff.map(p => { const tasks = activeTab === 'qualidade' ? p.qualityTasks : p.tasks; return <tr key={p.id}><td>{p.name}</td><td>{p.role}</td><td>{tasks.map(t => t.text).join(', ')}</td></tr>; })}</tbody>
+            </table>
+          </div>
         </div>
       );
     }
@@ -541,42 +395,14 @@
     function ArmyControlledManager({ onBack }) {
       const [armyReagents, setArmyReagents] = useState(() => { const saved = localStorage.getItem('qgi_army'); return saved ? JSON.parse(saved) : INITIAL_ARMY_REAGENTS; });
       useEffect(() => { localStorage.setItem('qgi_army', JSON.stringify(armyReagents)); }, [armyReagents]);
-      const handlePrint = () => window.print();
       return (
-        <div className="min-h-screen p-6 md:p-12 print:bg-white print:text-black">
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black">
           <div className="no-print flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800"><Icons.ArrowLeft size={24} /></button>
-              <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2>
-            </div>
-            <button onClick={handlePrint} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Icons.Printer size={18} /> PDF</button>
+            <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800"><Icons.ArrowLeft size={24} /></button><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2></div>
+            <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Icons.Printer size={18} /> PDF</button>
           </div>
-          
-          <div className="print-only mb-8">
-            <h1 className="text-xl font-bold uppercase text-center border-b-2 border-black pb-2 mb-4">Relatório de Controlados</h1>
-            <table className="print-table">
-              <thead><tr><th>Reagente</th><th>Qtd</th><th>Unid</th></tr></thead>
-              <tbody>
-                {armyReagents.map(i => <tr key={i.id}><td>{i.name}</td><td className="text-center">{i.quantity}</td><td className="text-center">{i.unit}</td></tr>)}
-              </tbody>
-            </table>
-            <div className="signature-block"><div className="signature-line">Assinatura Responsável</div><div className="signature-line">Data</div></div>
-          </div>
-
-          <div className="no-print bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Qtd</th><th className="px-6 py-4 text-center">Unid</th></tr></thead>
-              <tbody className="divide-y divide-slate-700">
-                {armyReagents.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-white">{item.name}</td>
-                    <td className="px-6 py-4 text-center"><input type="number" className="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white" value={item.quantity} onChange={(e) => {const val = Number(e.target.value); setArmyReagents(prev => prev.map(r => r.id === item.id ? {...r, quantity: val} : r))}} /></td>
-                    <td className="px-6 py-4 text-center text-slate-500">{item.unit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="print-only mb-8"><h1 className="text-xl font-bold uppercase text-center border-b-2 border-black pb-2 mb-4">Relatório de Controlados</h1><table className="print-table"><thead><tr><th>Reagente</th><th>Qtd</th><th>Unid</th></tr></thead><tbody>{armyReagents.map(i => <tr key={i.id}><td>{i.name}</td><td className="text-center">{i.quantity}</td><td className="text-center">{i.unit}</td></tr>)}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura Responsável</div><div className="signature-line">Data</div></div></div>
+          <div className="no-print bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Qtd</th><th className="px-6 py-4 text-center">Unid</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" className="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white" value={item.quantity} onChange={(e) => {const val = Number(e.target.value); setArmyReagents(prev => prev.map(r => r.id === item.id ? {...r, quantity: val} : r))}} /></td><td className="px-6 py-4 text-center text-slate-500">{item.unit}</td></tr>))}</tbody></table></div>
         </div>
       );
     }
