@@ -1,20 +1,21 @@
 {
   "name": "Painel QGI Laboratório",
   "short_name": "QGI Lab",
+  "description": "Gestão de Reagentes e Equipe QGI",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "./",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1048/1048953.png",
+      "src": "https://cdn-icons-png.flaticon.com/192/4341/4341146.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1048/1048953.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/4341/4341146.png",
       "sizes": "512x512",
       "type": "image/png"
     }
