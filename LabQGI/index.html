@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Painel QGI</title>
+  
+  <!-- Configurações PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Painel QGI">
+  
+  <!-- Ícone embutido (Base64) para funcionar sem arquivo de imagem extra -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2'/%3E%3Cpath d='M8.5 2h7'/%3E%3Cpath d='M7 16h10'/%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' style='background-color: white;'%3E%3Crect width='24' height='24' fill='white'/%3E%3Cpath d='M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M8.5 2h7' stroke='%233b82f6' stroke-width='2'/%3E%3Cpath d='M7 16h10' stroke='%233b82f6' stroke-width='2'/%3E%3C/svg%3E">
+
+  <!-- Carregando React e Tailwind via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    // Registro do Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('Service Worker registrado:', reg))
+          .catch(err => console.log('Erro no Service Worker:', err));
+      });
+    }
+
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          animation: {
+            'fade-in-down': 'fadeInDown 0.8s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeInDown: {
+              '0%': { opacity: '0', transform: 'translateY(-20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    
+    @media print {
+      @page { size: landscape; margin: 1cm; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background-color: white !important; color: black !important; }
+      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+      table.print-table th, table.print-table td { border: 1px solid #000; padding: 6px; vertical-align: middle; text-align: left; }
+      table.print-table th { background-color: #f0f0f0 !important; font-weight: bold; text-transform: uppercase; text-align: center; }
+      .signature-block { margin-top: 50px; display: flex; justify-content: center; gap: 100px; }
+      .signature-line { border-top: 1px solid black; width: 300px; text-align: center; padding-top: 5px; font-size: 12px; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 overflow-x-hidden selection:bg-blue-500 selection:text-white">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Ícones
+    const Icon = ({ path, size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
+    );
+
+    const Icons = {
+      Beaker: (props) => <Icon {...props} path={<><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></>} />,
+      ClipboardList: (props) => <Icon {...props} path={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></>} />,
+      Plus: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
+      Search: (props) => <Icon {...props} path={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>} />,
+      ArrowLeft: (props) => <Icon {...props} path={<><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>} />,
+      Calendar: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
+      CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
+      Lock: (props) => <Icon {...props} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />,
+      Unlock: (props) => <Icon {...props} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></>} />,
+      Printer: (props) => <Icon {...props} path={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></>} />,
+      Trash2: (props) => <Icon {...props} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+      User: (props) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+      GraduationCap: (props) => <Icon {...props} path={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>} />,
+      FlaskConical: (props) => <Icon {...props} path={<><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></>} />,
+      ShieldCheck: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>} />,
+      Users: (props) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
+      ShieldAlert: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
+      Pencil: (props) => <Icon {...props} path={<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></>} />,
+      Clock: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+      Archive: (props) => <Icon {...props} path={<><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3"/><line x1="10" x2="14" y1="12" y2="12"/></>} />,
+      History: (props) => <Icon {...props} path={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></>} />,
+      Filter: (props) => <Icon {...props} path={<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>} />,
+      FolderOpen: (props) => <Icon {...props} path={<><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></>} />,
+      Bell: (props) => <Icon {...props} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
+    };
+
+    // Dados Iniciais
+    const INITIAL_REAGENTS = [
+      { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
+      { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
+      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
+      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+    ];
+
+    const INITIAL_STAFF = [
+      { id: 's1', name: 'Carlos (Técnico)', role: 'Tecnico', tasks: [{ id: 't1', text: 'pHmetria' }], qualityTasks: [] },
+      { id: 's2', name: 'Ana (Técnica)', role: 'Tecnico', tasks: [], qualityTasks: [] },
+    ];
+
+    const INITIAL_ARMY_REAGENTS = [
+      { id: 'a1', name: 'Ácido Fluorídrico (Fluoreto de hidrogênio)', quantity: 0, unit: 'mL' },
+      { id: 'a2', name: 'Ácido Nítrico em Solução c/ conc. ≥ 55%', quantity: 0, unit: 'mL' },
+      { id: 'a3', name: 'Ácido Perclórico', quantity: 0, unit: 'mL' },
+      { id: 'a4', name: 'Álcool 2-Cloetilico (2-Cloroetano)', quantity: 0, unit: 'und' },
+      { id: 'a5', name: 'Azida de Sódio', quantity: 100, unit: 'g' },
+      { id: 'a6', name: 'Cianeto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a7', name: 'Fluoreto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a8', name: 'Fluoreto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a9', name: 'Hidrazina - adquirido em ampolas', quantity: 0, unit: 'und' },
+      { id: 'a10', name: 'Nitrato de amônio (Líquido)', quantity: 0, unit: 'mL' },
+      { id: 'a11', name: 'Nitrato de amônio (Sólido)', quantity: 0, unit: 'g' },
+      { id: 'a12', name: 'Nitrato de Mercúrio', quantity: 0, unit: 'g' },
+      { id: 'a13', name: 'Nitrato de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a14', name: 'Sulfeto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a15', name: 'Trietanolamina', quantity: 0, unit: 'mL' },
+    ];
+
+    function QGIDashboard() {
+      const [currentView, setCurrentView] = useState('home');
+
+      const renderView = () => {
+        switch (currentView) {
+          case 'reagents': return <ReagentManager onBack={() => setCurrentView('home')} />;
+          case 'tasks': return <TaskManager onBack={() => setCurrentView('home')} />;
+          case 'army': return <ArmyControlledManager onBack={() => setCurrentView('home')} />;
+          default: return <HomeDashboard onNavigate={setCurrentView} />;
+        }
+      };
+
+      return <div className="min-h-screen pb-safe">{renderView()}</div>;
+    }
+
+    function HomeDashboard({ onNavigate }) {
+      const [currentDate, setCurrentDate] = useState(new Date());
+      const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
+      const [permission, setPermission] = useState(Notification.permission);
+
+      useEffect(() => {
+        const timer = setInterval(() => setCurrentDate(new Date()), 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      const requestNotifyPermission = () => {
+        Notification.requestPermission().then(perm => {
+          setPermission(perm);
+          if(perm === 'granted') {
+            new Notification("Painel QGI", { body: "Notificações ativadas com sucesso!" });
+            checkAndNotify();
+          }
+        });
+      };
+
+      const checkAndNotify = () => {
+        const savedReagents = localStorage.getItem('qgi_reagents');
+        const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
+        const now = new Date();
+        
+        let expired = 0;
+        let expiring = 0;
+
+        reagentsList.forEach(r => {
+          const expiryDate = new Date(r.expiryDate);
+          const diffTime = expiryDate.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) expired++;
+          else if (diffDays <= 30) expiring++;
+        });
+
+        const dayOfMonth = now.getDate();
+        const isFirstWeek = dayOfMonth <= 7;
+
+        setNotifications({ expired, expiring, armyReport: isFirstWeek });
+
+        if (Notification.permission === 'granted') {
+          if (expired > 0) new Notification("Atenção QGI", { body: `Existem ${expired} itens vencidos no estoque!`, icon: '/icon.png' });
+          if (isFirstWeek) new Notification("Exército", { body: "Semana de relatório de controlados (Dia 1-7)!", icon: '/icon.png' });
+        }
+      };
+
+      useEffect(() => {
+        checkAndNotify();
+      }, []);
+
+      const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+          
+          <div className="absolute top-6 flex justify-center w-full">
+            <div className="bg-slate-800/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50 shadow-lg text-slate-300 text-sm font-medium flex items-center gap-3">
+              <span className="capitalize">{formattedDate}</span>
+              <div className="w-px h-4 bg-slate-600"></div>
+              <div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono">
+                <Icons.Clock size={14} /> {formattedTime}
+              </div>
+            </div>
+          </div>
+
+          <header className="mb-10 text-center mt-12 w-full max-w-md">
+            <div className="inline-flex items-center justify-center p-4 mb-4 bg-blue-600/20 rounded-full ring-1 ring-blue-500/50 shadow-[0_0_50px_rgba(37,99,235,0.3)]">
+              <Icons.FlaskConical size={40} className="text-blue-400" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-thin tracking-tight text-white mb-2">
+              Laboratório <span className="font-bold text-blue-400">QGI</span>
+            </h1>
+            
+            {permission !== 'granted' && (
+              <button onClick={requestNotifyPermission} className="mt-4 flex items-center justify-center gap-2 mx-auto text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full text-slate-300 transition-colors">
+                <Icons.Bell size={12} /> Ativar Notificações
+              </button>
+            )}
+          </header>
+
+          <div className="grid grid-cols-1 gap-6 w-full max-w-md">
+            <DashboardCard 
+              title="Reagentes & Padrões" 
+              description="Controle de validade e estoque."
+              icon={<Icons.Beaker size={32} />}
+              color="bg-emerald-500"
+              onClick={() => onNavigate('reagents')}
+              badges={[
+                notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white' } : null,
+                notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black' } : null
+              ]}
+            />
+            
+            <DashboardCard 
+              title="Distribuição & Equipe" 
+              description="Gestão de tarefas e pessoal."
+              icon={<Icons.ClipboardList size={32} />}
+              color="bg-indigo-500"
+              onClick={() => onNavigate('tasks')}
+            />
+
+            <DashboardCard 
+              title="Controlados (Exército)" 
+              description="Relatório mensal obrigatório."
+              icon={<Icons.ShieldAlert size={32} />}
+              color="bg-red-600"
+              onClick={() => onNavigate('army')}
+              badges={[
+                notifications.armyReport ? { text: 'RELATÓRIO MENSAL', color: 'bg-red-500 text-white animate-pulse' } : null
+              ]}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    function DashboardCard({ title, description, icon, color, onClick, badges }) {
+      return (
+        <button onClick={onClick} className="group relative flex flex-col items-start p-6 w-full rounded-2xl border border-slate-700/50 bg-slate-800/50 backdrop-blur-md shadow-lg transition-all active:scale-95 text-left overflow-hidden">
+          <div className={`absolute top-0 right-0 w-24 h-24 ${color} opacity-10 blur-[40px] rounded-full`}></div>
+          <div className="flex w-full justify-between items-start mb-3">
+            <div className={`p-3 rounded-xl bg-slate-700/50 text-white shadow-inner ring-1 ring-white/10`}>
+              {icon}
+            </div>
+            {badges && badges.some(b => b) && (
+              <div className="flex flex-col items-end gap-1">
+                {badges.filter(b => b).map((badge, idx) => (
+                  <span key={idx} className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-sm ${badge.color}`}>
+                    {badge.text}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative z-10 w-full">
+            <h3 className="text-xl font-bold text-white mb-1 group-active:text-blue-300">{title}</h3>
+            <p className="text-slate-400 text-sm leading-snug">{description}</p>
+          </div>
+        </button>
+      );
+    }
+
+    // --- REAGENT MANAGER (CÓDIGO ANTERIOR OTIMIZADO PARA MOBILE) ---
+    function ReagentManager({ onBack }) {
+      const [reagents, setReagents] = useState(() => {
+        const saved = localStorage.getItem('qgi_reagents');
+        const parsed = saved ? JSON.parse(saved) : INITIAL_REAGENTS;
+        return parsed.map(r => r.type ? r : { ...r, type: 'reagent' });
+      });
+      const [history, setHistory] = useState(() => {
+        const saved = localStorage.getItem('qgi_reagents_history');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [searchTerm, setSearchTerm] = useState('');
+      const [activeTab, setActiveTab] = useState('reagent');
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [newReagent, setNewReagent] = useState({ type: 'reagent' });
+      const [showDeleteModal, setShowDeleteModal] = useState(false);
+      const [itemToDelete, setItemToDelete] = useState(null);
+
+      useEffect(() => { localStorage.setItem('qgi_reagents', JSON.stringify(reagents)); }, [reagents]);
+      useEffect(() => { localStorage.setItem('qgi_reagents_history', JSON.stringify(history)); }, [history]);
+
+      const getStatus = (dateStr) => {
+        const today = new Date();
+        const expiry = new Date(dateStr);
+        const diffTime = expiry.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'VENCIDO' };
+        if (diffDays < 30) return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', label: 'VENCE EM BREVE' };
+        return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'OK' };
+      };
+
+      const filteredList = useMemo(() => {
+        let list = reagents.filter(r => r.type === activeTab && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
+        list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+        return list;
+      }, [reagents, searchTerm, activeTab]);
+
+      const historyList = useMemo(() => {
+        let list = history.filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        list.sort((a, b) => new Date(b.removedDate).getTime() - new Date(a.removedDate).getTime());
+        return list;
+      }, [history, searchTerm]);
+
+      const handleAddReagent = (e) => {
+        e.preventDefault();
+        if (!newReagent.name || !newReagent.expiryDate) return;
+        const item = { ...newReagent, id: Date.now().toString(), type: newReagent.type, brand: newReagent.brand || 'N/A', lot: newReagent.lot || 'N/A' };
+        setReagents([...reagents, item]);
+        setShowAddModal(false);
+        setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent' });
+      };
+
+      const executeDelete = (reason) => {
+        if (!itemToDelete) return;
+        const historyItem = { ...itemToDelete, removedDate: new Date().toISOString(), removalReason: reason };
+        setHistory([historyItem, ...history]);
+        setReagents(reagents.filter(r => r.id !== itemToDelete.id));
+        setShowDeleteModal(false);
+        setItemToDelete(null);
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-4">
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <button onClick={onBack} className="p-2 bg-slate-800 rounded-full"><Icons.ArrowLeft size={20} /></button>
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2"><Icons.Beaker className="text-emerald-400" /> Estoque</h2>
+            </div>
+            <div className="flex bg-slate-800 rounded-lg p-1">
+              {['reagent', 'standard', 'history'].map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${activeTab === tab ? 'bg-emerald-600 text-white shadow' : 'text-slate-400'}`}>
+                  {tab === 'reagent' ? 'Reagentes' : tab === 'standard' ? 'Padrões' : 'Histórico'}
+                </button>
+              ))}
+            </div>
+            {activeTab !== 'history' && (
+              <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg">
+                <Icons.Plus size={20} /> Novo Item
+              </button>
+            )}
+          </div>
+
+          <div className="relative mb-6">
+            <Icons.Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+            <input type="text" placeholder="Buscar..." className="w-full bg-slate-800 border-none rounded-xl py-3 pl-11 pr-4 text-white focus:ring-2 focus:ring-emerald-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+
+          {activeTab !== 'history' ? (
+            <div className="space-y-4">
+              {filteredList.map((item) => {
+                const status = getStatus(item.expiryDate);
+                return (
+                  <div key={item.id} className={`p-4 rounded-xl bg-slate-800/60 border ${status.border} backdrop-blur-sm`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-bold text-white text-lg leading-tight">{item.name}</h3>
+                        <p className="text-xs text-slate-400 mt-1">{item.brand} • Lote: {item.lot}</p>
+                      </div>
+                      <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="p-2 bg-slate-700/50 rounded-lg text-slate-400 hover:text-red-400"><Icons.Archive size={18} /></button>
+                    </div>
+                    {item.type === 'standard' && item.openingDate && <div className="mb-2 text-xs text-blue-300 flex items-center gap-1"><Icons.FolderOpen size={12}/> Aberto: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 mt-2">
+                      <div className="flex items-center gap-1 text-xs text-slate-400"><Icons.Calendar size={12} /> {new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {historyList.map((item) => (
+                <div key={item.id} className="p-3 rounded-lg bg-slate-800/40 border border-slate-700 flex justify-between items-center">
+                  <div>
+                    <h4 className="font-medium text-slate-300 text-sm">{item.name}</h4>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${item.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{item.removalReason}</span>
+                  </div>
+                  <div className="text-right text-xs text-slate-500">{new Date(item.removedDate).toLocaleDateString('pt-BR')}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddModal && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4 backdrop-blur-sm">
+              <div className="bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 animate-in slide-in-from-bottom duration-200">
+                <h3 className="text-xl font-bold text-white mb-4">Novo Item</h3>
+                <form onSubmit={handleAddReagent} className="space-y-3">
+                  <input required className="w-full bg-slate-900 rounded-lg p-3 text-white border border-slate-700" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
+                  <div className="flex gap-3">
+                    <input className="w-1/2 bg-slate-900 rounded-lg p-3 text-white border border-slate-700" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" />
+                    <input className="w-1/2 bg-slate-900 rounded-lg p-3 text-white border border-slate-700" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-full">
+                      <label className="text-xs text-slate-400 ml-1">Validade</label>
+                      <input required type="date" className="w-full bg-slate-900 rounded-lg p-3 text-white border border-slate-700" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} />
+                    </div>
+                    {newReagent.type === 'standard' && (
+                      <div className="w-full">
+                        <label className="text-xs text-blue-400 ml-1">Abertura</label>
+                        <input type="date" className="w-full bg-slate-900 rounded-lg p-3 text-white border border-blue-500/50" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button>
+                    <button type="submit" className="flex-1 py-3 bg-emerald-600 rounded-lg text-white font-bold">Salvar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+              <div className="bg-slate-800 w-full max-w-xs rounded-2xl p-6 text-center">
+                <h3 className="text-lg font-bold text-white mb-4">Motivo da Baixa</h3>
+                <div className="space-y-3">
+                  <button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 rounded-xl text-white font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18}/> Acabou</button>
+                  <button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 rounded-xl text-white font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18}/> Venceu/Descarte</button>
+                  <button onClick={() => setShowDeleteModal(false)} className="w-full py-2 text-slate-400 mt-2">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function TaskManager({ onBack }) {
+      const [staff, setStaff] = useState(() => { const saved = localStorage.getItem('qgi_staff'); return saved ? JSON.parse(saved) : INITIAL_STAFF; });
+      const [activeTab, setActiveTab] = useState('ensaios'); 
+      useEffect(() => { localStorage.setItem('qgi_staff', JSON.stringify(staff)); }, [staff]);
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-4 flex flex-col items-center justify-center">
+          <button onClick={onBack} className="mb-4 p-2 bg-slate-800 rounded-full self-start"><Icons.ArrowLeft size={20} /></button>
+          <div className="text-center text-slate-500">
+            <Icons.ClipboardList size={48} className="mx-auto mb-2 opacity-50"/>
+            <p>Módulo de Tarefas Simplificado (Mantido)</p>
+          </div>
+        </div>
+      );
+    }
+
+    function ArmyControlledManager({ onBack }) {
+      const [armyReagents, setArmyReagents] = useState(() => { const saved = localStorage.getItem('qgi_army'); return saved ? JSON.parse(saved) : INITIAL_ARMY_REAGENTS; });
+      useEffect(() => { localStorage.setItem('qgi_army', JSON.stringify(armyReagents)); }, [armyReagents]);
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-4">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={onBack} className="p-2 bg-slate-800 rounded-full"><Icons.ArrowLeft size={20} /></button>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2>
+          </div>
+          <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-300">
+                <thead className="bg-slate-900/50 text-slate-400"><tr><th className="px-4 py-3">Reagente</th><th className="px-4 py-3 text-center">Qtd</th><th className="px-4 py-3 text-center">Unid</th></tr></thead>
+                <tbody className="divide-y divide-slate-700">
+                  {armyReagents.map(item => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3 font-medium text-white">{item.name}</td>
+                      <td className="px-4 py-3 text-center"><input type="number" className="w-16 bg-slate-900 border border-slate-600 rounded text-center" value={item.quantity} onChange={(e) => {const val = Number(e.target.value); setArmyReagents(prev => prev.map(r => r.id === item.id ? {...r, quantity: val} : r))}} /></td>
+                      <td className="px-4 py-3 text-center">{item.unit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<QGIDashboard />);
+  </script>
+</body>
+</html>
