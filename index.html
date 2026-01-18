@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Painel QGI">
   
-  <!-- Ícones -->
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4341/4341146.png">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4341/4341146.png">
+  <!-- Ícone Erlenmeyer Azul Atualizado -->
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
 
   <!-- Bibliotecas -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -188,8 +188,8 @@
         const isFirstWeek = now.getDate() <= 7;
         setNotifications({ expired, expiring, armyReport: isFirstWeek });
         if (Notification.permission === 'granted') {
-          if (expired > 0) new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/4341/4341146.png' });
-          if (isFirstWeek) new Notification("Exército", { body: "Semana de relatório!", icon: 'https://cdn-icons-png.flaticon.com/512/4341/4341146.png' });
+          if (expired > 0) new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
+          if (isFirstWeek) new Notification("Exército", { body: "Semana de relatório!", icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
         }
       };
       useEffect(() => { checkAndNotify(); }, []);

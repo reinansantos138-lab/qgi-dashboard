@@ -10,12 +10,12 @@
   "scope": "./",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/192/4341/4341146.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2906/2906274.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/4341/4341146.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2906/2906274.png",
       "sizes": "512x512",
       "type": "image/png"
     }
