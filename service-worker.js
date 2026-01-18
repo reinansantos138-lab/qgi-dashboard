@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v4-blue-icon';
+const CACHE_NAME = 'qgi-lab-v5-firebase-sync'; // Mudei a versão para forçar atualização
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,26 +10,44 @@ const ASSETS_TO_CACHE = [
   'https://cdn-icons-png.flaticon.com/512/2906/2906274.png'
 ];
 
-// Instalação do Service Worker
+// Instalação: Cacheamento inicial
 self.addEventListener('install', (event) => {
+  // Força o SW a ativar imediatamente, não espera o usuário fechar a aba
+  self.skipWaiting();
+  
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('Abrindo cache:', CACHE_NAME);
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
   );
 });
 
-// Interceptação de requisições para servir cache offline
+// Interceptação de rede (Cache First, Network Fallback)
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((response) => response || fetch(event.request))
+    caches.match(event.request).then((response) => {
+      // Retorna do cache se existir, senão busca na rede
+      return response || fetch(event.request).catch(() => {
+        // Se falhar (offline total) e não estiver no cache, não faz nada (ou mostra pág offline)
+        // Para arquivos do Firestore, o próprio SDK lida com offline
+      });
+    })
   );
 });
 
-// Atualização do Service Worker
+// Ativação: Limpeza de caches antigos
 self.addEventListener('activate', (event) => {
+  // Garante que o SW controle a página imediatamente
+  event.waitUntil(clients.claim());
+
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(keyList.map((key) => {
-        if (key !== CACHE_NAME) return caches.delete(key);
+        if (key !== CACHE_NAME) {
+          console.log('Removendo cache antigo:', key);
+          return caches.delete(key);
+        }
       }));
     })
   );
