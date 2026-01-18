@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Painel QGI</title>
+  <title>Painel QGI - Lab Sync</title>
   
   <!-- Configurações PWA -->
   <link rel="manifest" href="manifest.json">
@@ -12,11 +12,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Painel QGI">
   
-  <!-- Ícone Erlenmeyer Azul Atualizado -->
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
 
-  <!-- Bibliotecas -->
+  <!-- Bibliotecas React & Tailwind -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -51,6 +50,7 @@
   </script>
   
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #1e293b; }
@@ -69,19 +69,134 @@
       table.print-table th { background-color: #f0f0f0 !important; font-weight: bold; text-transform: uppercase; text-align: center; height: 40px; vertical-align: middle; }
       
       .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
-      .signature-block { margin-top: 30px; display: flex; justify-content: center; }
+      .signature-block { margin-top: 30px; display: flex; justify-content: center; gap: 50px;}
       .signature-line { border-top: 1px solid black; width: 300px; text-align: center; padding-top: 5px; font-size: 12px; }
     }
     .print-only { display: none; }
   </style>
+
+  <!-- FIREBASE SETUP (Modular CDN) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrRjL0GW8n8_9edX5sQpRNx1pqyofajMQ",
+      authDomain: "labqgi.firebaseapp.com",
+      projectId: "labqgi",
+      storageBucket: "labqgi.firebasestorage.app",
+      messagingSenderId: "325320235954",
+      appId: "1:325320235954:web:4fbc77a721ec60238ba2ab",
+      measurementId: "G-07WB7J92NQ"
+    };
+
+    // Inicialização
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const analytics = getAnalytics(app);
+
+    // Identificador FIXO do Laboratório
+    window.LAB_ID = "lab_qgi_principal"; 
+
+    // Login Anônimo
+    signInAnonymously(auth)
+      .then(() => console.log("Conectado ao Firebase como anônimo"))
+      .catch((error) => console.error("Erro de conexão:", error));
+
+    // Persistência Offline
+    try {
+      enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+             console.log('Múltiplas abas abertas. Persistência offline pode estar desativada nesta aba.');
+        } else if (err.code == 'unimplemented') {
+             console.log('Navegador não suporta persistência offline.');
+        }
+      });
+    } catch(e) { console.log("Persistência já ativa"); }
+
+    // Exportar para o escopo global
+    window.db = db;
+    window.doc = doc;
+    window.onSnapshot = onSnapshot;
+    window.setDoc = setDoc;
+    
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
 </head>
 <body class="text-slate-100 overflow-x-hidden selection:bg-blue-500 selection:text-white">
 
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
 
+    // --- HOOK DE SINCRONIZAÇÃO (Mantido do passo anterior) ---
+    function useSyncedState(key, initialValue) {
+      const [data, setData] = useState(() => {
+        try {
+          const saved = localStorage.getItem(`qgi_${key}`);
+          return saved ? JSON.parse(saved) : initialValue;
+        } catch (e) {
+          return initialValue;
+        }
+      });
+
+      const isRemoteUpdate = useRef(false);
+
+      useEffect(() => {
+        let unsubscribe = () => {};
+        const connectToFirestore = () => {
+          if (!window.db || !window.LAB_ID) return;
+          const docRef = window.doc(window.db, "labs", window.LAB_ID, "data", key);
+          unsubscribe = window.onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const remoteData = docSnap.data().content;
+              if (JSON.stringify(remoteData) !== JSON.stringify(data)) {
+                isRemoteUpdate.current = true;
+                setData(remoteData);
+                localStorage.setItem(`qgi_${key}`, JSON.stringify(remoteData));
+              }
+            }
+          }, (error) => console.log("Aguardando sync...", error));
+        };
+
+        if (window.db) {
+          connectToFirestore();
+        } else {
+          window.addEventListener('firebase-ready', connectToFirestore);
+        }
+
+        return () => {
+          unsubscribe();
+          window.removeEventListener('firebase-ready', connectToFirestore);
+        };
+      }, [key]);
+
+      const updateData = (newDataOrFn) => {
+        let newData;
+        if (typeof newDataOrFn === 'function') {
+          newData = newDataOrFn(data);
+        } else {
+          newData = newDataOrFn;
+        }
+        isRemoteUpdate.current = false;
+        setData(newData);
+        localStorage.setItem(`qgi_${key}`, JSON.stringify(newData));
+
+        if (window.db && window.LAB_ID) {
+          const docRef = window.doc(window.db, "labs", window.LAB_ID, "data", key);
+          window.setDoc(docRef, { content: newData }, { merge: true })
+            .catch(e => console.error("Erro ao salvar nuvem:", e));
+        }
+      };
+
+      return [data, updateData];
+    }
+
+    // --- ÍCONES (Mantidos do seu código original) ---
     const Icon = ({ path, size = 24, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
     );
@@ -112,9 +227,10 @@
       Filter: (props) => <Icon {...props} path={<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>} />,
       FolderOpen: (props) => <Icon {...props} path={<><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></>} />,
       Bell: (props) => <Icon {...props} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
+      Cloud: (props) => <Icon {...props} path={<><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/><path d="m15.5 8.5-3.5-3.5-3.5 3.5"/></>} />,
     };
 
-    // Dados Iniciais
+    // Dados Iniciais (Mantidos)
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
@@ -164,6 +280,7 @@
       return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">{renderView()}</div>;
     }
 
+    // --- HOME RESTAURADA COM NOTIFICAÇÕES ---
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
@@ -176,6 +293,7 @@
       };
 
       const checkAndNotify = () => {
+        // Leitura do localStorage (que o hook useSyncedState mantém atualizado)
         const savedReagents = localStorage.getItem('qgi_reagents');
         const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
         const now = new Date();
@@ -207,7 +325,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada de Química Geral e Inorgânica</p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 flex inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -220,7 +338,7 @@
               <p className="text-sm text-slate-500 mt-2 text-center">Espaço reservado para<br/>expansão futura.</p>
             </div>
           </div>
-          <footer className="mt-12 text-slate-600 text-sm font-medium">Sistema QGI v2.2 • PWA Enabled</footer>
+          <footer className="mt-12 text-slate-600 text-sm font-medium">Sistema QGI v3.0 • Cloud Sync Ativado</footer>
         </div>
       );
     }
@@ -241,9 +359,10 @@
       );
     }
 
-    // --- TASK MANAGER (CORRIGIDO: ABAS RESTAURADAS E IMPRESSÃO EXCEL) ---
     function TaskManager({ onBack }) {
-      const [staff, setStaff] = useState(() => { const saved = localStorage.getItem('qgi_staff'); return saved ? JSON.parse(saved) : INITIAL_STAFF; });
+      // USANDO O NOVO HOOK DE SYNC para 'staff'
+      const [staff, setStaff] = useSyncedState('staff', INITIAL_STAFF);
+      
       const [activeTab, setActiveTab] = useState('ensaios'); 
       const [isLocked, setIsLocked] = useState(true);
       const [newTaskText, setNewTaskText] = useState(''); 
@@ -252,7 +371,7 @@
       const [newStaffName, setNewStaffName] = useState('');
       const [newStaffRole, setNewStaffRole] = useState('Tecnico');
 
-      useEffect(() => { localStorage.setItem('qgi_staff', JSON.stringify(staff)); }, [staff]);
+      // (Nota: o useEffect de localStorage original é redundante pois o hook já faz isso, mas mantemos o código limpo removendo-o)
 
       const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
       const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
@@ -262,14 +381,12 @@
 
       const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
 
-      // Helper para Impressão Estilo Excel
+      // Helper para Impressão Estilo Excel (RESTAURADO)
       const PrintTable = ({ title, type }) => {
-        // Calcular número máximo de linhas para a tabela
         const maxRows = staff.reduce((max, member) => {
           const tasks = type === 'quality' ? member.qualityTasks : member.tasks;
           return Math.max(max, tasks.length);
         }, 0);
-        // Garantir no mínimo algumas linhas para ficar bonito
         const rows = Math.max(maxRows, 5);
 
         return (
@@ -312,7 +429,6 @@
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
           
-          {/* SECÇÃO DE IMPRESSÃO (Escondida na Tela) */}
           <div className="print-only">
             <div className="mb-4 text-center">
               <h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório de Atividades</h1>
@@ -324,7 +440,6 @@
             <div className="signature-block"><div className="signature-line">Assinatura do Responsável</div></div>
           </div>
 
-          {/* SECÇÃO INTERATIVA (Tela) */}
           <div className="no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6">
               <div className="flex items-center gap-4">
@@ -338,7 +453,6 @@
               </div>
             </div>
 
-            {/* BARRA DE CONTROLE (Filtros e Print) */}
             {activeTab !== 'equipe' && (
               <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50">
                 <div className="flex gap-2">
@@ -357,7 +471,6 @@
               </div>
             )}
 
-            {/* ABA EQUIPE (Restaurada) */}
             {activeTab === 'equipe' && (
               <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-8">
@@ -386,7 +499,6 @@
               </div>
             )}
 
-            {/* ABA ENSAIOS / QUALIDADE */}
             {activeTab !== 'equipe' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in zoom-in duration-300">
                 {filteredStaff.map((person) => {
@@ -418,17 +530,16 @@
     }
 
     function ReagentManager({ onBack }) {
-      const [reagents, setReagents] = useState(() => { const saved = localStorage.getItem('qgi_reagents'); const parsed = saved ? JSON.parse(saved) : INITIAL_REAGENTS; return parsed.map(r => r.type ? r : { ...r, type: 'reagent' }); });
-      const [history, setHistory] = useState(() => { const saved = localStorage.getItem('qgi_reagents_history'); return saved ? JSON.parse(saved) : []; });
+      // USANDO O NOVO HOOK DE SYNC para 'reagents' e 'history'
+      const [reagents, setReagents] = useSyncedState('reagents', INITIAL_REAGENTS);
+      const [history, setHistory] = useSyncedState('reagents_history', []);
+      
       const [searchTerm, setSearchTerm] = useState('');
       const [activeTab, setActiveTab] = useState('reagent');
       const [showAddModal, setShowAddModal] = useState(false);
       const [newReagent, setNewReagent] = useState({ type: 'reagent' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
-
-      useEffect(() => { localStorage.setItem('qgi_reagents', JSON.stringify(reagents)); }, [reagents]);
-      useEffect(() => { localStorage.setItem('qgi_reagents_history', JSON.stringify(history)); }, [history]);
 
       const getStatus = (dateStr) => {
         const today = new Date(); const expiry = new Date(dateStr); const diffTime = expiry.getTime() - today.getTime(); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -438,17 +549,21 @@
       };
 
       const filteredList = useMemo(() => {
-        let list = reagents.filter(r => r.type === activeTab && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
+        // Garantia de que reagents é um array
+        const listData = Array.isArray(reagents) ? reagents : [];
+        let list = listData.filter(r => (r.type === activeTab || (!r.type && activeTab === 'reagent')) && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
         list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
         return list;
       }, [reagents, searchTerm, activeTab]);
 
       const historyList = useMemo(() => {
-        let list = history.filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        const listData = Array.isArray(history) ? history : [];
+        let list = listData.filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
         list.sort((a, b) => new Date(b.removedDate).getTime() - new Date(a.removedDate).getTime());
         return list;
       }, [history, searchTerm]);
 
+      // BADGE DE SUGESTÃO (RESTAURADO)
       const getSuggestionBadge = (item, list) => {
         if (activeTab === 'history') return null;
         const duplicates = list.filter(r => r.name.toLowerCase() === item.name.toLowerCase());
@@ -556,7 +671,9 @@
     }
 
     function ArmyControlledManager({ onBack }) {
-      const [armyReagents, setArmyReagents] = useState(() => { const saved = localStorage.getItem('qgi_army'); return saved ? JSON.parse(saved) : INITIAL_ARMY_REAGENTS; });
+      // USANDO O NOVO HOOK DE SYNC para 'army'
+      const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS);
+      
       const [selectedMonth, setSelectedMonth] = useState('Novembro');
       const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
       const [showAddModal, setShowAddModal] = useState(false);
@@ -565,8 +682,6 @@
       const [editingReagent, setEditingReagent] = useState(null);
       const LAB_UNITS = ['mL', 'L', 'µL', 'g', 'kg', 'mg', 'und', 'fr', 'cx', 'gal'];
       const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-      useEffect(() => { localStorage.setItem('qgi_army', JSON.stringify(armyReagents)); }, [armyReagents]);
 
       const handleQuantityChange = (id, newQty) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, quantity: newQty } : r));
       const handleUnitChange = (id, newUnit) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, unit: newUnit } : r));
