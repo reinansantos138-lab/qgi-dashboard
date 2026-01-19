@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v8-army-date-fix'; // Atualizado para v8
+const CACHE_NAME = 'qgi-lab-v9-final-sync';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
