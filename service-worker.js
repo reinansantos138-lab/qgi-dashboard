@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v6-ui-fix'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'qgi-lab-v7-army-list-fix'; // Atualizado para v7
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

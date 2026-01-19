@@ -5,42 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Painel QGI - Lab Sync</title>
   
-  <!-- Configurações PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Painel QGI">
   
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
 
-  <!-- Bibliotecas -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   
   <script>
-    // Registro SW com proteção
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         if (window.location.protocol.startsWith('http')) {
-          navigator.serviceWorker.register('./service-worker.js').then(reg => {
-            reg.onupdatefound = () => {
-              const installingWorker = reg.installing;
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('Atualização disponível');
-                }
-              };
-            };
-          }).catch(err => console.log('Info: SW não registado (Dev)', err));
+          navigator.serviceWorker.register('./service-worker.js').catch(console.error);
         }
       });
     }
 
-    // Reset Global
     window.hardResetApp = async () => {
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -73,11 +59,6 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
     @media print {
       @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
@@ -93,7 +74,6 @@
     .print-only { display: none; }
   </style>
 
-  <!-- FIREBASE SETUP -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -112,14 +92,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
-
     window.LAB_ID = "lab_qgi_principal"; 
 
-    signInAnonymously(auth).catch((error) => console.error("Firebase Auth Error", error));
-
-    try {
-      enableIndexedDbPersistence(db).catch((err) => console.log("Persistence:", err.code));
-    } catch(e) {}
+    signInAnonymously(auth).catch(console.error);
+    try { enableIndexedDbPersistence(db).catch(() => {}); } catch(e) {}
 
     window.db = db;
     window.doc = doc;
@@ -135,7 +111,7 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // --- HOOK SYNC ---
+    // --- SYNC HOOK ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
         try {
@@ -147,39 +123,35 @@
 
       useEffect(() => {
         let unsubscribe = () => {};
-        const connectToFirestore = () => {
-          if (!window.db || !window.LAB_ID) return;
-          const docRef = window.doc(window.db, "labs", window.LAB_ID, "data", key);
-          unsubscribe = window.onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists()) {
-              const remoteData = docSnap.data().content;
-              if (JSON.stringify(remoteData) !== JSON.stringify(data)) {
+        const connect = () => {
+          if (!window.db) return;
+          unsubscribe = window.onSnapshot(window.doc(window.db, "labs", window.LAB_ID, "data", key), (snap) => {
+            if (snap.exists()) {
+              const remote = snap.data().content;
+              if (JSON.stringify(remote) !== JSON.stringify(data)) {
                 isRemoteUpdate.current = true;
-                setData(remoteData);
-                localStorage.setItem(`qgi_${key}`, JSON.stringify(remoteData));
+                setData(remote);
+                localStorage.setItem(`qgi_${key}`, JSON.stringify(remote));
               }
             }
           });
         };
-        if (window.db) connectToFirestore();
-        else window.addEventListener('firebase-ready', connectToFirestore);
-        return () => { unsubscribe(); window.removeEventListener('firebase-ready', connectToFirestore); };
+        if (window.db) connect();
+        else window.addEventListener('firebase-ready', connect);
+        return () => { unsubscribe(); window.removeEventListener('firebase-ready', connect); };
       }, [key]);
 
-      const updateData = (newDataOrFn) => {
+      const update = (newDataOrFn) => {
         let newData = typeof newDataOrFn === 'function' ? newDataOrFn(data) : newDataOrFn;
         isRemoteUpdate.current = false;
         setData(newData);
         localStorage.setItem(`qgi_${key}`, JSON.stringify(newData));
-        if (window.db && window.LAB_ID) {
-          const docRef = window.doc(window.db, "labs", window.LAB_ID, "data", key);
-          window.setDoc(docRef, { content: newData }, { merge: true }).catch(e => console.error("Sync Error:", e));
-        }
+        if (window.db) window.setDoc(window.doc(window.db, "labs", window.LAB_ID, "data", key), { content: newData }, { merge: true });
       };
-      return [data, updateData];
+      return [data, update];
     }
 
-    // --- ÍCONES ---
+    // --- ICONS ---
     const Icon = ({ path, size = 24, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
     );
@@ -213,16 +185,40 @@
       Refresh: (props) => <Icon {...props} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
     };
 
-    // Dados Iniciais
+    // --- DADOS INICIAIS (FULL RESTORED FROM PDF) ---
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
+      { id: '3', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '4', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
     ];
+
     const INITIAL_STAFF = [
-      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }], qualityTasks: [] },
+      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }, { id: 't2', text: 'Cloro Residual' }], qualityTasks: [] },
+      { id: 's2', name: 'Glaucia Haack', role: 'Tecnico', tasks: [{ id: 't3', text: 'Cianotoxinas' }], qualityTasks: [] },
+      { id: 's3', name: 'Adriana Goes', role: 'Tecnico', tasks: [], qualityTasks: [] },
+      { id: 's4', name: 'Franciesco Pinto', role: 'Tecnico', tasks: [{ id: 't4', text: 'Dureza total' }], qualityTasks: [] },
+      { id: 's5', name: 'Sandra Helena', role: 'Tecnico', tasks: [{ id: 't5', text: 'Óleos e Graxas' }], qualityTasks: [] },
+      { id: 's6', name: 'Antônio Fidelis', role: 'Estagiario', tasks: [{ id: 't6', text: 'Fósforo' }], qualityTasks: [] },
+      { id: 's7', name: 'Victor Luiz', role: 'Estagiario', tasks: [{ id: 't7', text: 'DBO e DQO' }], qualityTasks: [] },
     ];
+
     const INITIAL_ARMY_REAGENTS = [
-      { id: 'a1', name: 'Ácido Fluorídrico', quantity: 0, unit: 'mL' },
+      { id: 'a1', name: 'Ácido Fluorídrico (Fluoreto de hidrogênio)', quantity: 0, unit: 'mL' },
+      { id: 'a2', name: 'Ácido Nítrico em Solução c/ conc. ≥ 55%', quantity: 0, unit: 'mL' },
+      { id: 'a3', name: 'Ácido Perclórico', quantity: 0, unit: 'mL' },
+      { id: 'a4', name: 'Álcool 2-Cloetilico (2-Cloroetano)', quantity: 0, unit: 'und' },
+      { id: 'a5', name: 'Azida de Sódio', quantity: 100, unit: 'g' },
+      { id: 'a6', name: 'Cianeto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a7', name: 'Fluoreto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a8', name: 'Fluoreto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a9', name: 'Hidrazina - adquirido em ampolas', quantity: 0, unit: 'und' },
+      { id: 'a10', name: 'Nitrato de amônio (Líquido)', quantity: 0, unit: 'mL' },
+      { id: 'a11', name: 'Nitrato de amônio (Sólido)', quantity: 0, unit: 'g' },
+      { id: 'a12', name: 'Nitrato de Mercúrio', quantity: 0, unit: 'g' },
+      { id: 'a13', name: 'Nitrato de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a14', name: 'Sulfeto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a15', name: 'Trietanolamina', quantity: 0, unit: 'mL' },
     ];
 
     function QGIDashboard() {
@@ -241,31 +237,24 @@
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
-      const [permission, setPermission] = useState(Notification.permission);
-
-      useEffect(() => { const t = setInterval(() => setCurrentDate(new Date()), 1000); return () => clearInterval(t); }, []);
-
-      const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { setPermission(perm); if(perm === 'granted') checkAndNotify(); });
-      };
-
-      const checkAndNotify = () => {
-        const savedReagents = localStorage.getItem('qgi_reagents');
-        const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
-        const now = new Date();
-        let expired = 0, expiring = 0;
-        reagentsList.forEach(r => {
-          if (r.type === 'history') return;
-          const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
-          if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
-        });
-        const isFirstWeek = now.getDate() <= 7;
-        setNotifications({ expired, expiring, armyReport: isFirstWeek });
-        if (Notification.permission === 'granted' && expired > 0) {
-           new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
+      
+      useEffect(() => { 
+        const t = setInterval(() => setCurrentDate(new Date()), 1000); 
+        // Checagem simples de notificação
+        const saved = localStorage.getItem('qgi_reagents');
+        if(saved) {
+          const list = JSON.parse(saved);
+          const now = new Date();
+          let exp = 0, exping = 0;
+          list.forEach(r => {
+             if(r.type==='history') return;
+             const d = Math.ceil((new Date(r.expiryDate)-now)/(86400000));
+             if(d<0) exp++; else if(d<=30) exping++;
+          });
+          setNotifications({ expired: exp, expiring: exping, armyReport: now.getDate()<=7 });
         }
-      };
-      useEffect(() => { checkAndNotify(); }, []);
+        return () => clearInterval(t); 
+      }, []);
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -277,26 +266,27 @@
               <span className="capitalize">{formattedDate}</span><div className="w-px h-4 bg-slate-600"></div><div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono"><Icons.Clock size={14} /> {formattedTime}</div>
             </div>
           </div>
+          
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V6</span></p>
-            {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V7</span></p>
           </header>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
             <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
             
-            {/* NOVO MÓDULO RESTAURADO */}
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
               <p className="text-sm text-slate-500 mt-2 text-center">Espaço reservado para<br/>expansão futura.</p>
             </div>
           </div>
+
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v6.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v7.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -305,6 +295,7 @@
       );
     }
 
+    // --- AUXILIARY COMPONENTS ---
     function DashboardCard({ title, description, icon, color, onClick, badges }) {
       return (
         <button onClick={onClick} className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none text-left overflow-hidden">
@@ -333,7 +324,6 @@
 
       const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
       const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
-      
       const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
       const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
@@ -365,7 +355,6 @@
               </div>
             </div>
             {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
-            
             {activeTab === 'equipe' ? (
               <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
@@ -383,7 +372,7 @@
       const [searchTerm, setSearchTerm] = useState('');
       const [activeTab, setActiveTab] = useState('reagent');
       const [showAddModal, setShowAddModal] = useState(false);
-      const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' }); // CORREÇÃO: Inicializa usage
+      const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -424,7 +413,6 @@
 
       const handleAddReagent = (e) => {
         e.preventDefault(); if (!newReagent.name || !newReagent.expiryDate) return;
-        // CORREÇÃO: Inclui usage no objeto salvo
         const item = { 
           ...newReagent, 
           id: Date.now().toString(), 
@@ -455,10 +443,7 @@
               {filteredList.map((item) => { const status = getStatus(item.expiryDate); return (
                 <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm group`}>
                   <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div><button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button></div>
-                  
-                  {/* CORREÇÃO: Exibe o uso se existir */}
                   {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
-                  
                   {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
                   <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50"><div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div><span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span></div>
                 </div>
@@ -471,7 +456,6 @@
           <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
           <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
           
-          {/* CORREÇÃO: Adicionado campo de Uso no formulário */}
           <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
           
           <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
