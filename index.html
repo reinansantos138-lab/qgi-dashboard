@@ -21,14 +21,12 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Proteção contra ambiente de preview (blob:)
         if (window.location.protocol.startsWith('http')) {
           navigator.serviceWorker.register('./service-worker.js').catch(console.error);
         }
       });
     }
 
-    // Função de Emergência para limpar cache
     window.hardResetApp = async () => {
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -60,11 +58,6 @@
   
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
     @media print {
       @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
@@ -80,7 +73,6 @@
     .print-only { display: none; }
   </style>
 
-  <!-- FIREBASE SETUP -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -118,7 +110,6 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // --- SYNC HOOK (O motor do Firebase) ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
         try {
@@ -161,7 +152,6 @@
     const Icon = ({ path, size = 24, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
     );
-
     const Icons = {
       Beaker: (props) => <Icon {...props} path={<><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></>} />,
       ClipboardList: (props) => <Icon {...props} path={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></>} />,
@@ -195,9 +185,8 @@
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
-      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+      { id: '3', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '4', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
     ];
 
     const INITIAL_STAFF = [
@@ -238,44 +227,68 @@
           default: return <HomeDashboard onNavigate={setCurrentView} />;
         }
       };
-      return <div className="min-h-screen">{renderView()}</div>;
+      return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">{renderView()}</div>;
     }
 
-    // --- HOME DASHBOARD ---
+    // --- CORREÇÃO AQUI: HomeDashboard com limpeza segura no useEffect ---
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
 
-      useEffect(() => { const t = setInterval(() => setCurrentDate(new Date()), 1000); return () => clearInterval(t); }, []);
+      useEffect(() => { 
+        let mounted = true; // Flag para garantir que o componente ainda existe
+        const t = setInterval(() => {
+          if(mounted) setCurrentDate(new Date());
+        }, 1000); 
+
+        const checkAndNotify = () => {
+          const savedReagents = localStorage.getItem('qgi_reagents');
+          if (!savedReagents) return;
+          
+          try {
+            const reagentsList = JSON.parse(savedReagents);
+            const now = new Date();
+            let expired = 0, expiring = 0;
+            reagentsList.forEach(r => {
+              if (r.type === 'history') return;
+              const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
+            });
+            
+            const isFirstWeek = now.getDate() <= 7;
+            
+            // Só atualiza o estado se o componente estiver montado
+            if (mounted) {
+              setNotifications({ expired, expiring, armyReport: isFirstWeek });
+            }
+
+            // Notificações nativas apenas se permitido e houver alertas
+            if (Notification.permission === 'granted' && expired > 0) {
+               // new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
+            }
+          } catch(e) { console.log('Erro ao ler cache:', e) }
+        };
+
+        checkAndNotify();
+        
+        return () => { 
+          mounted = false; // Cleanup: componente desmontado, não atualize mais estado
+          clearInterval(t); 
+        }; 
+      }, []);
 
       const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { setPermission(perm); if(perm === 'granted') checkAndNotify(); });
-      };
-
-      const checkAndNotify = () => {
-        const savedReagents = localStorage.getItem('qgi_reagents');
-        const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
-        const now = new Date();
-        let expired = 0, expiring = 0;
-        reagentsList.forEach(r => {
-          if (r.type === 'history') return;
-          const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
-          if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
+        Notification.requestPermission().then(perm => { 
+          setPermission(perm); 
         });
-        const isFirstWeek = now.getDate() <= 7;
-        setNotifications({ expired, expiring, armyReport: isFirstWeek });
-        if (Notification.permission === 'granted' && expired > 0) {
-           new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
-        }
       };
-      useEffect(() => { checkAndNotify(); }, []);
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 relative">
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 relative">
           <div className="absolute top-6 flex justify-center w-full pointer-events-none">
             <div className="bg-slate-800/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700/50 shadow-lg text-slate-300 text-sm font-medium flex items-center gap-3">
               <span className="capitalize">{formattedDate}</span><div className="w-px h-4 bg-slate-600"></div><div className="flex items-center gap-1.5 text-blue-400 font-bold font-mono"><Icons.Clock size={14} /> {formattedTime}</div>
@@ -284,7 +297,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V9</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V10</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -292,7 +305,6 @@
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
             
-            {/* NOVO MÓDULO RESTAURADO */}
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
@@ -300,7 +312,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v9.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v10.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -325,16 +337,67 @@
       );
     }
 
-    // --- REAGENT MANAGER ---
+    function TaskManager({ onBack }) {
+      const [staff, setStaff] = useSyncedState('staff', INITIAL_STAFF); 
+      const [activeTab, setActiveTab] = useState('ensaios'); 
+      const [isLocked, setIsLocked] = useState(true);
+      const [newTaskText, setNewTaskText] = useState(''); 
+      const [selectedStaffId, setSelectedStaffId] = useState(null);
+      const [filterRole, setFilterRole] = useState('Todos');
+      const [newStaffName, setNewStaffName] = useState('');
+      const [newStaffRole, setNewStaffRole] = useState('Tecnico');
+
+      const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
+      const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
+      const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
+      const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
+      const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
+
+      const PrintTable = ({ title, type }) => {
+        const maxRows = staff.reduce((max, member) => Math.max(max, (type === 'quality' ? member.qualityTasks : member.tasks).length), 0);
+        const rows = Math.max(maxRows, 5);
+        return (
+          <div className="print-only">
+            <h2 className="text-xl font-bold text-black mb-2 uppercase border-b-2 border-black pb-1">{title}</h2>
+            <table className="print-table">
+              <thead><tr>{staff.map(m => <th key={m.id}>{m.name}<br/><span className="font-normal text-[8px] normal-case">{m.role}</span></th>)}</tr></thead>
+              <tbody>{Array.from({ length: rows }).map((_, rowIndex) => <tr key={rowIndex}>{staff.map(m => <td key={m.id}>{(type === 'quality' ? m.qualityTasks : m.tasks)[rowIndex]?.text || ''}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        );
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
+          <div className="print-only"><div className="mb-4 text-center"><h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório</h1></div><PrintTable title="Ensaios Analíticos" type="normal" /><div className="page-break"></div><PrintTable title="Gestão da Qualidade" type="quality" /><div className="signature-block"><div className="signature-line">Responsável</div></div></div>
+          <div className="no-print">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6">
+              <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ClipboardList className="text-indigo-400" /> Distribuição & Equipe</h2><p className="text-slate-400 text-sm">Sincronizado via Nuvem</p></div></div>
+              <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">
+                <button onClick={() => setActiveTab('ensaios')} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'ensaios' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>Ensaios</button>
+                <button onClick={() => setActiveTab('qualidade')} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'qualidade' ? 'bg-teal-600 text-white' : 'text-slate-400'}`}>Qualidade</button>
+                <button onClick={() => setActiveTab('equipe')} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'equipe' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Equipe</button>
+              </div>
+            </div>
+            {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
+            {activeTab === 'equipe' ? (
+              <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; return <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden"><div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50"><h3 className="font-bold text-white">{person.name}</h3></div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     function ReagentManager({ onBack }) {
-      // SYNC: Reagentes e Histórico
-      const [reagents, setReagents] = useSyncedState('reagents', INITIAL_REAGENTS);
-      const [history, setHistory] = useSyncedState('reagents_history', []);
-      
+      const [reagents, setReagents] = useSyncedState('reagents', INITIAL_REAGENTS); 
+      const [history, setHistory] = useSyncedState('reagents_history', []); 
+
       const [searchTerm, setSearchTerm] = useState('');
       const [activeTab, setActiveTab] = useState('reagent');
       const [showAddModal, setShowAddModal] = useState(false);
-      const [newReagent, setNewReagent] = useState({ type: 'reagent' });
+      const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -342,18 +405,17 @@
         const today = new Date(); const expiry = new Date(dateStr); const diffTime = expiry.getTime() - today.getTime(); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'VENCIDO' };
         if (diffDays < 30) return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', label: 'VENCE EM BREVE' };
-        return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'DENTRO DA VALIDADE' };
+        return { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'VALIDADE OK' };
       };
 
       const filteredList = useMemo(() => {
-        // Garantia de array
-        let list = (Array.isArray(reagents) ? reagents : []).filter(r => (r.type === activeTab || (!r.type && activeTab === 'reagent')) && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
+        let list = reagents.filter(r => r.type === activeTab && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
         list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
         return list;
       }, [reagents, searchTerm, activeTab]);
 
       const historyList = useMemo(() => {
-        let list = (Array.isArray(history) ? history : []).filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        let list = history.filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
         list.sort((a, b) => new Date(b.removedDate).getTime() - new Date(a.removedDate).getTime());
         return list;
       }, [history, searchTerm]);
@@ -384,7 +446,7 @@
           lot: newReagent.lot || 'N/A',
           usage: newReagent.usage || '' 
         };
-        setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent' });
+        setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent', usage: '' });
       };
 
       const executeDelete = (reason) => {
@@ -396,517 +458,72 @@
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
-              <div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Beaker className="text-emerald-400" /> Reagentes & Padrões</h2><p className="text-slate-400 text-sm">Gerencie estoque, validades e descarte.</p></div>
-            </div>
-            <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">
-              {['reagent', 'standard', 'history'].map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === tab ? (tab === 'history' ? 'bg-slate-700 text-white shadow' : (tab === 'reagent' ? 'bg-emerald-600 text-white shadow' : 'bg-blue-600 text-white shadow')) : 'text-slate-400 hover:text-white'}`}>
-                  {tab === 'history' && <Icons.History size={16} />}{tab === 'reagent' ? 'Reagentes' : (tab === 'standard' ? 'Padrões' : 'Histórico')}
-                </button>
-              ))}
-            </div>
-            {activeTab !== 'history' && <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all hover:scale-105"><Icons.Plus size={20} /> Novo Item</button>}
+            <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Beaker className="text-emerald-400" /> Reagentes & Padrões</h2><p className="text-slate-400 text-sm">Estoque sincronizado</p></div></div>
+            <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">{['reagent', 'standard', 'history'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>{tab === 'history' ? 'Histórico' : (tab === 'reagent' ? 'Reagentes' : 'Padrões')}</button>)}</div>
+            {activeTab !== 'history' && <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium"><Icons.Plus size={20} /> Novo Item</button>}
           </div>
-          <div className="relative mb-8 max-w-2xl mx-auto">
-            <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
+          <div className="relative mb-8 max-w-2xl mx-auto"><Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           {activeTab !== 'history' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredList.map((item) => {
-                const status = getStatus(item.expiryDate);
-                return (
-                  <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm transition-all hover:bg-slate-800 group`}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div><h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div>
-                      <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button>
-                    </div>
-                    {/* USO (RESTAURADO) */}
-                    {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
-                    {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
-                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50">
-                      <div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div>
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredList.map((item) => { const status = getStatus(item.expiryDate); return (
+                <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm group`}>
+                  <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div><button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button></div>
+                  
+                  {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
+                  
+                  {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
+                  <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50"><div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div><span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span></div>
+                </div>
+              );})}
             </div>
           ) : (
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4 text-right">Data Baixa</th></tr></thead>
-                  <tbody className="divide-y divide-slate-700">{historyList.map(i => <tr key={i.id} className="hover:bg-slate-700/30"><td className="px-6 py-4 font-medium text-white">{i.name}</td><td className="px-6 py-4">{i.brand} - {i.lot}</td><td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span></td><td className="px-6 py-4 text-right font-mono text-slate-400">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td></tr>)}</tbody>
-                </table>
-              </div>
-            </div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4 text-right">Data Baixa</th></tr></thead><tbody className="divide-y divide-slate-700">{historyList.map(i => <tr key={i.id} className="hover:bg-slate-700/30"><td className="px-6 py-4 font-medium text-white">{i.name}</td><td className="px-6 py-4">{i.brand} - {i.lot}</td><td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span></td><td className="px-6 py-4 text-right font-mono text-slate-400">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td></tr>)}</tbody></table></div></div>
           )}
-          {showAddModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-in zoom-in duration-200">
-                <h3 className="text-xl font-bold text-white mb-4">Novo Item</h3>
-                <form onSubmit={handleAddReagent} className="space-y-4">
-                  <div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div>
-                  <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
-                  <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
-                  
-                  {/* CAMPO USO (RESTAURADO) */}
-                  <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
-                  
-                  <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div>
-                  <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div>
-                </form>
-              </div>
-            </div>
-          )}
-          {showDeleteModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center animate-in zoom-in duration-200">
-                <div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div>
-                <h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3>
-                <p className="text-slate-400 mb-6">Selecione o motivo para remover do estoque.</p>
-                <div className="flex flex-col gap-3"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // --- TASK MANAGER ---
-    function TaskManager({ onBack }) {
-      // SYNC: Equipe
-      const [staff, setStaff] = useSyncedState('staff', INITIAL_STAFF);
-      
-      const [activeTab, setActiveTab] = useState('ensaios'); 
-      const [isLocked, setIsLocked] = useState(true);
-      const [newTaskText, setNewTaskText] = useState(''); 
-      const [selectedStaffId, setSelectedStaffId] = useState(null);
-      const [filterRole, setFilterRole] = useState('Todos');
-      const [newStaffName, setNewStaffName] = useState('');
-      const [newStaffRole, setNewStaffRole] = useState('Tecnico');
-
-      const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
-      const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
-      
-      const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
-      const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
-
-      const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
-
-      // Helper para Impressão Estilo Excel
-      const PrintTable = ({ title, type }) => {
-        const maxRows = staff.reduce((max, member) => {
-          const tasks = type === 'quality' ? member.qualityTasks : member.tasks;
-          return Math.max(max, tasks.length);
-        }, 0);
-        const rows = Math.max(maxRows, 5);
-
-        return (
-          <div className="print-only">
-            <h2 className="text-xl font-bold text-black mb-2 uppercase border-b-2 border-black pb-1">{title}</h2>
-            <table className="print-table">
-              <thead>
-                <tr>
-                  {staff.map(member => (
-                    <th key={member.id}>
-                      {member.name}
-                      <br/>
-                      <span className="font-normal text-[8px] normal-case">
-                        {member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: rows }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {staff.map(member => {
-                      const taskList = type === 'quality' ? member.qualityTasks : member.tasks;
-                      const task = taskList[rowIndex];
-                      return (
-                        <td key={member.id}>
-                          {task ? task.text : ''}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      };
-
-      return (
-        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
           
-          <div className="print-only">
-            <div className="mb-4 text-center">
-              <h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório de Atividades</h1>
-              <p className="text-xs text-gray-500">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
-            </div>
-            <PrintTable title="Distribuição de Ensaios Analíticos" type="normal" />
-            <div className="page-break"></div>
-            <PrintTable title="Gestão da Qualidade Laboratorial" type="quality" />
-            <div className="signature-block"><div className="signature-line">Assinatura do Responsável</div></div>
-          </div>
-
-          <div className="no-print">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6">
-              <div className="flex items-center gap-4">
-                <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
-                <div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ClipboardList className="text-indigo-400" /> Distribuição & Equipe</h2><p className="text-slate-400 text-sm">Gerencie ensaios, qualidade e equipe.</p></div>
-              </div>
-              <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">
-                <button onClick={() => setActiveTab('ensaios')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'ensaios' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Ensaios</button>
-                <button onClick={() => setActiveTab('qualidade')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'qualidade' ? 'bg-teal-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}><Icons.ShieldCheck size={16} /> Qualidade</button>
-                <button onClick={() => setActiveTab('equipe')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'equipe' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}><Icons.Users size={16} /> Equipe</button>
-              </div>
-            </div>
-
-            {activeTab !== 'equipe' && (
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50">
-                <div className="flex gap-2">
-                  {['Todos', 'Tecnico', 'Estagiario'].map((role) => (
-                    <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                      {role === 'Tecnico' ? 'Técnicos' : role === 'Estagiario' ? 'Estagiários' : 'Todos'}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                   <button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border transition-all ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>
-                    {isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}
-                  </button>
-                  <button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900 hover:bg-white transition-colors" title="Imprimir Tabela (PDF)"><Icons.Printer size={18} /></button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'equipe' && (
-              <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-8">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Icons.Plus size={20} className="text-emerald-400"/> Adicionar Membro</h3>
-                  <form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4">
-                    <input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-emerald-500" />
-                    <select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-emerald-500">
-                      <option value="Tecnico">Técnico</option>
-                      <option value="Estagiario">Estagiário</option>
-                    </select>
-                    <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg transition-colors">Adicionar</button>
-                  </form>
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-slate-400 uppercase tracking-wider mb-4">Equipe Atual ({staff.length})</h3>
-                  {staff.map(member => (
-                    <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div>
-                        <div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div>
-                      </div>
-                      <button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"><Icons.Trash2 size={20} /></button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab !== 'equipe' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in zoom-in duration-300">
-                {filteredStaff.map((person) => {
-                  const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks;
-                  const taskType = activeTab === 'qualidade' ? 'quality' : 'normal';
-                  const headerColor = activeTab === 'qualidade' ? 'bg-teal-500/10 border-teal-500/20' : (person.role === 'Tecnico' ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-purple-500/10 border-purple-500/20');
-                  return (
-                    <div key={person.id} className={`flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden backdrop-blur-sm transition-all ${!isLocked ? 'ring-2 ring-slate-500/30' : ''}`}>
-                      <div className={`p-4 border-b border-slate-700/50 flex items-center justify-between ${headerColor}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-full bg-slate-900/30`}>{activeTab === 'qualidade' ? <Icons.ShieldCheck size={18} className="text-teal-400" /> : (person.role === 'Tecnico' ? <Icons.User size={18} className="text-indigo-400" /> : <Icons.GraduationCap size={18} className="text-purple-400" />)}</div>
-                          <div><h3 className="font-bold text-white">{person.name}</h3><span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">{person.role}</span></div>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]">
-                        {currentTasks.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-700/50 rounded-lg p-4"><span className="text-sm italic">Sem atribuições</span></div> : 
-                          <ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30 hover:border-slate-500"><span className="text-sm text-slate-200 leading-snug font-medium">{task.text}</span>{!isLocked && <button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400 transition-colors"><Icons.Trash2 size={14} /></button>}</li>)}</ul>
-                        }
-                      </div>
-                      {!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Tarefa..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded hover:bg-emerald-500"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-emerald-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600 hover:border-emerald-500/50 transition-all"><Icons.Plus size={14} /> Adicionar</button>}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
+          
+          <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
+          {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
         </div>
       );
     }
 
-    // --- ARMY CONTROLLED MANAGER ---
     function ArmyControlledManager({ onBack }) {
-      // SYNC: Army
-      const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS);
-      
+      const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS); // Hook Sync
       const [selectedMonth, setSelectedMonth] = useState('Novembro');
       const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-      
       const [showAddModal, setShowAddModal] = useState(false);
       const [newReagent, setNewReagent] = useState({});
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
-
       const LAB_UNITS = ['mL', 'L', 'µL', 'g', 'kg', 'mg', 'und', 'fr', 'cx', 'gal'];
       const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-      const handleQuantityChange = (id, newQty) => {
-        setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, quantity: newQty } : r));
-      };
-
-      const handleUnitChange = (id, newUnit) => {
-        setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, unit: newUnit } : r));
-      };
-      
-      const handleAddReagent = (e) => {
-        e.preventDefault();
-        if (!newReagent.name) return;
-        
-        const item = {
-          id: 'army_' + Date.now(),
-          name: newReagent.name,
-          quantity: Number(newReagent.quantity) || 0,
-          unit: newReagent.unit || 'mL'
-        };
-
-        setArmyReagents([...armyReagents, item]);
-        setShowAddModal(false);
-        setNewReagent({});
-      };
-
-      const openEditModal = (reagent) => {
-        setEditingReagent({ ...reagent });
-        setShowEditModal(true);
-      };
-
-      const handleUpdateReagent = (e) => {
-        e.preventDefault();
-        if (!editingReagent.name) return;
-
-        setArmyReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r));
-        setShowEditModal(false);
-        setEditingReagent(null);
-      };
-
-      const removeReagent = (id) => {
-        if(confirm('Tem certeza que deseja remover este item da lista de controlados?')) {
-          setArmyReagents(prev => prev.filter(r => r.id !== id));
-        }
-      };
-
-      const handlePrint = () => {
-        window.print();
-      };
+      const handleQuantityChange = (id, newQty) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, quantity: newQty } : r));
+      const handleUnitChange = (id, newUnit) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, unit: newUnit } : r));
+      const handleAddReagent = (e) => { e.preventDefault(); if (!newReagent.name) return; const item = { id: 'army_' + Date.now(), name: newReagent.name, quantity: Number(newReagent.quantity) || 0, unit: newReagent.unit || 'mL' }; setArmyReagents([...armyReagents, item]); setShowAddModal(false); setNewReagent({}); };
+      const handleUpdateReagent = (e) => { e.preventDefault(); if (!editingReagent.name) return; setArmyReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r)); setShowEditModal(false); setEditingReagent(null); };
+      const removeReagent = (id) => { if(confirm('Remover este item?')) setArmyReagents(prev => prev.filter(r => r.id !== id)); };
 
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
-          
-          <div className="print-only">
-            <h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1>
-            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black">
-              <span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}
-            </div>
-
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '60%' }}>REAGENTES</th>
-                  <th style={{ width: '25%' }}>Qtd em uso no Laboratório</th>
-                  <th style={{ width: '15%' }}>UNIDADE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {armyReagents.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td className="text-center">{item.quantity}</td>
-                    <td className="text-center">{item.unit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="signature-block">
-                <div className="signature-line">Assinatura do Responsável Técnico</div>
-                <div className="signature-line">Data</div>
-            </div>
-          </div>
-
           <div className="no-print">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-              <div className="flex items-center gap-4">
-                <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors">
-                  <Icons.ArrowLeft size={24} />
-                </button>
-                <div>
-                  <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <Icons.ShieldAlert className="text-red-500" /> Controle Exército
-                  </h2>
-                  <p className="text-slate-400 text-sm">Relatório mensal de reagentes controlados.</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
-                {/* Seletores de Data RESTAURADOS */}
-                <select 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 cursor-pointer"
-                >
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4"><div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2><p className="text-slate-400 text-sm">Sincronizado</p></div></div><div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 cursor-pointer">
                   {months.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
+                <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500" placeholder="Ano" />
                 
-                <input
-                  type="number"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500"
-                  placeholder="Ano"
-                />
-
                 <div className="w-px h-6 bg-slate-600 mx-2"></div>
-
-                <button 
-                  onClick={() => setShowAddModal(true)}
-                  className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"
-                >
-                  <Icons.Plus size={16} /> Adicionar Item
-                </button>
-
-                <button 
-                  onClick={handlePrint}
-                  className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"
-                >
-                  <Icons.Printer size={18} /> Exportar PDF
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium">
-                    <tr>
-                      <th className="px-6 py-4">Reagente</th>
-                      <th className="px-6 py-4 text-center">Quantidade</th>
-                      <th className="px-6 py-4 text-center">Unidade</th>
-                      <th className="px-6 py-4 text-right w-24">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700">
-                    {armyReagents.map((item) => (
-                      <tr key={item.id} className="group hover:bg-slate-700/30 transition-colors">
-                        <td className="px-6 py-4 font-medium text-white">{item.name}</td>
-                        <td className="px-6 py-4 text-center">
-                          <input 
-                            type="number" 
-                            min="0"
-                            value={item.quantity}
-                            onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))}
-                            className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                          />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <select
-                            value={item.unit}
-                            onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                            className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm appearance-none cursor-pointer hover:bg-slate-800"
-                          >
-                             {LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => openEditModal(item)}
-                              className="p-2 text-slate-600 hover:text-blue-400 transition-colors"
-                              title="Editar Reagente"
-                            >
-                              <Icons.Pencil size={16} />
-                            </button>
-                            <button 
-                              onClick={() => removeReagent(item.id)}
-                              className="p-2 text-slate-600 hover:text-red-400 transition-colors"
-                              title="Remover Item"
-                            >
-                              <Icons.Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
+                <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>
+              </div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
           </div>
-
-          {showAddModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-6 border-b border-slate-700 bg-slate-800">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Icons.ShieldAlert className="text-red-500"/> Adicionar Controlado
-                  </h3>
-                </div>
-                <form onSubmit={handleAddReagent} className="p-6 space-y-4">
-                  <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 focus:outline-none" 
-                    value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Ex: Acetona P.A." />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 focus:outline-none" 
-                      value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="0" />
-                    <select 
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 focus:outline-none"
-                      value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}
-                    >
-                        {LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex gap-3 pt-4">
-                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-lg text-slate-400 hover:bg-slate-700 transition-colors">Cancelar</button>
-                    <button type="submit" className="flex-1 py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition-colors">Adicionar</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {showEditModal && editingReagent && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-6 border-b border-slate-700 bg-slate-800">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Icons.Pencil className="text-blue-500"/> Editar Reagente
-                  </h3>
-                </div>
-                <form onSubmit={handleUpdateReagent} className="p-6 space-y-4">
-                  <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                    value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                      value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} />
-                    <select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-                      value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select>
-                  </div>
-                  <div className="flex gap-3 pt-4">
-                    <button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 rounded-lg text-slate-400 hover:bg-slate-700 transition-colors">Cancelar</button>
-                    <button type="submit" className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors">Salvar Alterações</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
+          <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div></div>
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
+          {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>
       );
     }

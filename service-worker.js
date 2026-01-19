@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v9-final-sync';
+const CACHE_NAME = 'qgi-lab-v10-notification-fix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
