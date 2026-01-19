@@ -111,7 +111,6 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // --- SYNC HOOK ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
         try {
@@ -151,7 +150,6 @@
       return [data, update];
     }
 
-    // --- ICONS ---
     const Icon = ({ path, size = 24, className = "" }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
     );
@@ -185,7 +183,6 @@
       Refresh: (props) => <Icon {...props} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
     };
 
-    // --- DADOS INICIAIS (FULL RESTORED FROM PDF) ---
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
@@ -240,7 +237,6 @@
       
       useEffect(() => { 
         const t = setInterval(() => setCurrentDate(new Date()), 1000); 
-        // Checagem simples de notificação
         const saved = localStorage.getItem('qgi_reagents');
         if(saved) {
           const list = JSON.parse(saved);
@@ -270,7 +266,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V7</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V8</span></p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -286,7 +282,7 @@
           </div>
 
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v7.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v8.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -295,7 +291,6 @@
       );
     }
 
-    // --- AUXILIARY COMPONENTS ---
     function DashboardCard({ title, description, icon, color, onClick, badges }) {
       return (
         <button onClick={onClick} className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none text-left overflow-hidden">
@@ -324,6 +319,7 @@
 
       const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
       const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
+      
       const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
       const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
@@ -355,6 +351,7 @@
               </div>
             </div>
             {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
+            
             {activeTab === 'equipe' ? (
               <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
@@ -443,7 +440,9 @@
               {filteredList.map((item) => { const status = getStatus(item.expiryDate); return (
                 <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm group`}>
                   <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div><button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button></div>
+                  
                   {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
+                  
                   {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
                   <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50"><div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div><span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span></div>
                 </div>
@@ -466,8 +465,8 @@
 
     function ArmyControlledManager({ onBack }) {
       const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS); // Hook Sync
-      const [selectedMonth, setSelectedMonth] = useState('Novembro');
-      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+      const [selectedMonth, setSelectedMonth] = useState('Novembro'); // CORREÇÃO: Restaurado para ser editável
+      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // CORREÇÃO: Restaurado para ser editável
       const [showAddModal, setShowAddModal] = useState(false);
       const [newReagent, setNewReagent] = useState({});
       const [showEditModal, setShowEditModal] = useState(false);
@@ -484,10 +483,49 @@
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
           <div className="no-print">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4"><div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2><p className="text-slate-400 text-sm">Sincronizado</p></div></div><div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700"><button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button><button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar</button></div></div>
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+              <div className="flex items-center gap-4">
+                <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
+                <div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2><p className="text-slate-400 text-sm">Sincronizado</p></div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                {/* CORREÇÃO: Select e Input restaurados */}
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 cursor-pointer">
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500" placeholder="Ano" />
+                
+                <div className="w-px h-6 bg-slate-600 mx-2"></div>
+                <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
+                <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar</button>
+              </div>
+            </div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead>
+                  <tbody className="divide-y divide-slate-700">
+                    {armyReagents.map((item) => (
+                      <tr key={item.id} className="group hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 font-medium text-white">{item.name}</td>
+                        <td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td>
+                        <td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td>
+                        <td className="px-6 py-4 text-right"><div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400 transition-colors"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400 transition-colors"><Icons.Trash2 size={16} /></button></div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Controle Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura</div></div></div>
+          
+          <div className="print-only">
+            <h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1>
+            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div>
+            <table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table>
+            <div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div>
+          </div>
+
           {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
           {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>
