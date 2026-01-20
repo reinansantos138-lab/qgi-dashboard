@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- NOVO ÍCONE: Erlenmeyer Azul -->
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4206/4206016.png">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4206/4206016.png">
+  <!-- Ícone Local (Renomeie sua imagem para icon.png) -->
+  <link rel="icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
 
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -186,8 +186,9 @@
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: '3', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      { id: '4', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
+      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
     ];
 
     const INITIAL_STAFF = [
@@ -236,29 +237,33 @@
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
 
-      useEffect(() => { const t = setInterval(() => setCurrentDate(new Date()), 1000); return () => clearInterval(t); }, []);
+      useEffect(() => { 
+        let mounted = true; 
+        const t = setInterval(() => { if(mounted) setCurrentDate(new Date()); }, 1000); 
+
+        const checkAndNotify = () => {
+          const savedReagents = localStorage.getItem('qgi_reagents');
+          if (!savedReagents) return;
+          try {
+            const reagentsList = JSON.parse(savedReagents);
+            const now = new Date();
+            let expired = 0, expiring = 0;
+            reagentsList.forEach(r => {
+              if (r.type === 'history') return;
+              const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
+            });
+            const isFirstWeek = now.getDate() <= 7;
+            if (mounted) setNotifications({ expired, expiring, armyReport: isFirstWeek });
+          } catch(e) {}
+        };
+        checkAndNotify();
+        return () => { mounted = false; clearInterval(t); }; 
+      }, []);
 
       const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { setPermission(perm); if(perm === 'granted') checkAndNotify(); });
+        Notification.requestPermission().then(perm => { setPermission(perm); });
       };
-
-      const checkAndNotify = () => {
-        const savedReagents = localStorage.getItem('qgi_reagents');
-        const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
-        const now = new Date();
-        let expired = 0, expiring = 0;
-        reagentsList.forEach(r => {
-          if (r.type === 'history') return;
-          const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
-          if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
-        });
-        const isFirstWeek = now.getDate() <= 7;
-        setNotifications({ expired, expiring, armyReport: isFirstWeek });
-        if (Notification.permission === 'granted' && expired > 0) {
-           new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/4206/4206016.png' });
-        }
-      };
-      useEffect(() => { checkAndNotify(); }, []);
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
