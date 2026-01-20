@@ -10,8 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2906/2906274.png">
+  <!-- NOVO ÍCONE: Erlenmeyer Azul -->
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4206/4206016.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4206/4206016.png">
 
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -185,9 +186,8 @@
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
-      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+      { id: '3', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '4', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
     ];
 
     const INITIAL_STAFF = [
@@ -236,33 +236,29 @@
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
 
-      useEffect(() => { 
-        let mounted = true; 
-        const t = setInterval(() => { if(mounted) setCurrentDate(new Date()); }, 1000); 
-
-        const checkAndNotify = () => {
-          const savedReagents = localStorage.getItem('qgi_reagents');
-          if (!savedReagents) return;
-          try {
-            const reagentsList = JSON.parse(savedReagents);
-            const now = new Date();
-            let expired = 0, expiring = 0;
-            reagentsList.forEach(r => {
-              if (r.type === 'history') return;
-              const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
-              if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
-            });
-            const isFirstWeek = now.getDate() <= 7;
-            if (mounted) setNotifications({ expired, expiring, armyReport: isFirstWeek });
-          } catch(e) {}
-        };
-        checkAndNotify();
-        return () => { mounted = false; clearInterval(t); }; 
-      }, []);
+      useEffect(() => { const t = setInterval(() => setCurrentDate(new Date()), 1000); return () => clearInterval(t); }, []);
 
       const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { setPermission(perm); });
+        Notification.requestPermission().then(perm => { setPermission(perm); if(perm === 'granted') checkAndNotify(); });
       };
+
+      const checkAndNotify = () => {
+        const savedReagents = localStorage.getItem('qgi_reagents');
+        const reagentsList = savedReagents ? JSON.parse(savedReagents) : INITIAL_REAGENTS;
+        const now = new Date();
+        let expired = 0, expiring = 0;
+        reagentsList.forEach(r => {
+          if (r.type === 'history') return;
+          const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
+        });
+        const isFirstWeek = now.getDate() <= 7;
+        setNotifications({ expired, expiring, armyReport: isFirstWeek });
+        if (Notification.permission === 'granted' && expired > 0) {
+           new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/4206/4206016.png' });
+        }
+      };
+      useEffect(() => { checkAndNotify(); }, []);
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -277,13 +273,14 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V11</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V12</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
             <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
+            
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
@@ -291,7 +288,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v11.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v12.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -598,7 +595,7 @@
                 <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
                 <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>
               </div></div>
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
           </div>
           <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Controle Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura</div></div></div>
           {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
