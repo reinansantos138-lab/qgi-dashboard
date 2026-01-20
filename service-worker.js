@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v10-notification-fix';
+const CACHE_NAME = 'qgi-lab-v11-reagents-update';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

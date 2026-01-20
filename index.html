@@ -185,8 +185,9 @@
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: '3', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      { id: '4', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
+      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
     ];
 
     const INITIAL_STAFF = [
@@ -230,22 +231,18 @@
       return <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">{renderView()}</div>;
     }
 
-    // --- CORREÇÃO AQUI: HomeDashboard com limpeza segura no useEffect ---
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
 
       useEffect(() => { 
-        let mounted = true; // Flag para garantir que o componente ainda existe
-        const t = setInterval(() => {
-          if(mounted) setCurrentDate(new Date());
-        }, 1000); 
+        let mounted = true; 
+        const t = setInterval(() => { if(mounted) setCurrentDate(new Date()); }, 1000); 
 
         const checkAndNotify = () => {
           const savedReagents = localStorage.getItem('qgi_reagents');
           if (!savedReagents) return;
-          
           try {
             const reagentsList = JSON.parse(savedReagents);
             const now = new Date();
@@ -255,33 +252,16 @@
               const diffDays = Math.ceil((new Date(r.expiryDate) - now) / (1000 * 60 * 60 * 24));
               if (diffDays < 0) expired++; else if (diffDays <= 30) expiring++;
             });
-            
             const isFirstWeek = now.getDate() <= 7;
-            
-            // Só atualiza o estado se o componente estiver montado
-            if (mounted) {
-              setNotifications({ expired, expiring, armyReport: isFirstWeek });
-            }
-
-            // Notificações nativas apenas se permitido e houver alertas
-            if (Notification.permission === 'granted' && expired > 0) {
-               // new Notification("Atenção QGI", { body: `${expired} itens vencidos!`, icon: 'https://cdn-icons-png.flaticon.com/512/2906/2906274.png' });
-            }
-          } catch(e) { console.log('Erro ao ler cache:', e) }
+            if (mounted) setNotifications({ expired, expiring, armyReport: isFirstWeek });
+          } catch(e) {}
         };
-
         checkAndNotify();
-        
-        return () => { 
-          mounted = false; // Cleanup: componente desmontado, não atualize mais estado
-          clearInterval(t); 
-        }; 
+        return () => { mounted = false; clearInterval(t); }; 
       }, []);
 
       const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { 
-          setPermission(perm); 
-        });
+        Notification.requestPermission().then(perm => { setPermission(perm); });
       };
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -297,14 +277,13 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V10</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V11</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
             <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
-            
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
@@ -312,7 +291,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v10.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v11.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -360,7 +339,7 @@
           <div className="print-only">
             <h2 className="text-xl font-bold text-black mb-2 uppercase border-b-2 border-black pb-1">{title}</h2>
             <table className="print-table">
-              <thead><tr>{staff.map(m => <th key={m.id}>{m.name}<br/><span className="font-normal text-[8px] normal-case">{m.role}</span></th>)}</tr></thead>
+              <thead><tr>{staff.map(m => <th key={m.id}>{m.name}<br/><span className="font-normal text-[8px] normal-case">{m.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></th>)}</tr></thead>
               <tbody>{Array.from({ length: rows }).map((_, rowIndex) => <tr key={rowIndex}>{staff.map(m => <td key={m.id}>{(type === 'quality' ? m.qualityTasks : m.tasks)[rowIndex]?.text || ''}</td>)}</tr>)}</tbody>
             </table>
           </div>
@@ -379,9 +358,10 @@
                 <button onClick={() => setActiveTab('equipe')} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'equipe' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Equipe</button>
               </div>
             </div>
-            {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
+            {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role === 'Tecnico' ? 'Técnicos' : role === 'Estagiario' ? 'Estagiários' : 'Todos'}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
+            
             {activeTab === 'equipe' ? (
-              <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
+              <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; return <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden"><div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50"><h3 className="font-bold text-white">{person.name}</h3></div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
             )}
@@ -400,6 +380,12 @@
       const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
+      // NOVO: Estado para editar reagente
+      const [showEditModal, setShowEditModal] = useState(false);
+      const [editingReagent, setEditingReagent] = useState(null);
+
+      // Função para normalizar strings (remover acentos e minúsculas)
+      const normalizeName = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
       const getStatus = (dateStr) => {
         const today = new Date(); const expiry = new Date(dateStr); const diffTime = expiry.getTime() - today.getTime(); const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -409,21 +395,31 @@
       };
 
       const filteredList = useMemo(() => {
-        let list = reagents.filter(r => r.type === activeTab && (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.brand.toLowerCase().includes(searchTerm.toLowerCase())));
+        let list = reagents.filter(r => {
+          const typeMatch = (r.type === activeTab || (!r.type && activeTab === 'reagent'));
+          const searchNorm = normalizeName(searchTerm);
+          const nameNorm = normalizeName(r.name);
+          const brandNorm = normalizeName(r.brand);
+          return typeMatch && (nameNorm.includes(searchNorm) || brandNorm.includes(searchNorm));
+        });
         list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
         return list;
       }, [reagents, searchTerm, activeTab]);
 
       const historyList = useMemo(() => {
-        let list = history.filter(h => h.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        let list = history.filter(h => normalizeName(h.name).includes(normalizeName(searchTerm)));
         list.sort((a, b) => new Date(b.removedDate).getTime() - new Date(a.removedDate).getTime());
         return list;
       }, [history, searchTerm]);
 
+      // BADGE DE SUGESTÃO (MELHORADO COM NORMALIZAÇÃO)
       const getSuggestionBadge = (item, list) => {
         if (activeTab === 'history') return null;
-        const duplicates = list.filter(r => r.name.toLowerCase() === item.name.toLowerCase());
+        const normItemName = normalizeName(item.name);
+        const duplicates = list.filter(r => normalizeName(r.name) === normItemName);
         if (duplicates.length > 1) {
+          // Ordena duplicatas por validade para garantir que o "primeiro" é o que vence logo
+          duplicates.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
           const isFirst = duplicates[0].id === item.id;
           if (isFirst) {
             return (
@@ -455,6 +451,31 @@
         setHistory([historyItem, ...history]); setReagents(reagents.filter(r => r.id !== itemToDelete.id)); setShowDeleteModal(false); setItemToDelete(null);
       };
 
+      const deletePermanently = (id) => {
+        if(confirm('Tem a certeza que deseja excluir permanentemente este item? Esta ação não pode ser desfeita.')) {
+          setReagents(reagents.filter(r => r.id !== id));
+        }
+      };
+
+      const deleteHistoryItem = (id) => {
+        if(confirm('Tem a certeza que deseja excluir este registro do histórico?')) {
+          setHistory(history.filter(h => h.id !== id));
+        }
+      };
+
+      const openEditModal = (item) => {
+        setEditingReagent({...item});
+        setShowEditModal(true);
+      };
+
+      const handleUpdateReagent = (e) => {
+        e.preventDefault();
+        if (!editingReagent.name || !editingReagent.expiryDate) return;
+        setReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r));
+        setShowEditModal(false);
+        setEditingReagent(null);
+      };
+
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -463,27 +484,85 @@
             {activeTab !== 'history' && <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium"><Icons.Plus size={20} /> Novo Item</button>}
           </div>
           <div className="relative mb-8 max-w-2xl mx-auto"><Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          
           {activeTab !== 'history' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredList.map((item) => { const status = getStatus(item.expiryDate); return (
                 <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm group`}>
-                  <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3><p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p></div><button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/50 p-2 rounded-lg"><Icons.Archive size={18} /></button></div>
-                  
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3>
+                      <p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p>
+                    </div>
+                    {/* AÇÕES: LÁPIS, BAIXA, LIXEIRA */}
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEditModal(item)} className="text-slate-400 hover:text-blue-400 bg-slate-900/50 p-2 rounded-lg" title="Editar"><Icons.Pencil size={18} /></button>
+                      <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-400 hover:text-purple-400 bg-slate-900/50 p-2 rounded-lg" title="Dar Baixa (Arquivar)"><Icons.Archive size={18} /></button>
+                      <button onClick={() => deletePermanently(item.id)} className="text-slate-400 hover:text-red-400 bg-slate-900/50 p-2 rounded-lg" title="Excluir Permanentemente"><Icons.Trash2 size={18} /></button>
+                    </div>
+                  </div>
                   {item.usage && <div className="mb-2 bg-slate-900/50 p-2 rounded-lg text-xs text-slate-300"><span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Uso:</span> {item.usage}</div>}
-                  
                   {item.type === 'standard' && item.openingDate && <div className="mb-4 flex items-center gap-2 text-xs text-blue-300 bg-blue-500/10 p-2 rounded-lg border border-blue-500/20"><Icons.FolderOpen size={14}/> Aberto em: {new Date(item.openingDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>}
                   <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-700/50"><div className="flex items-center gap-2 text-sm"><Icons.Calendar size={16} className="text-slate-500" /><span className="font-mono text-slate-200">{new Date(item.expiryDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span></div><span className={`text-xs font-bold px-3 py-1 rounded-full ${status.bg} ${status.color}`}>{status.label}</span></div>
                 </div>
               );})}
             </div>
           ) : (
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4 text-right">Data Baixa</th></tr></thead><tbody className="divide-y divide-slate-700">{historyList.map(i => <tr key={i.id} className="hover:bg-slate-700/30"><td className="px-6 py-4 font-medium text-white">{i.name}</td><td className="px-6 py-4">{i.brand} - {i.lot}</td><td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span></td><td className="px-6 py-4 text-right font-mono text-slate-400">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td></tr>)}</tbody></table></div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4">Data Baixa</th><th className="px-6 py-4 text-right">Ação</th></tr></thead>
+                  <tbody className="divide-y divide-slate-700">
+                    {historyList.map(i => (
+                      <tr key={i.id} className="hover:bg-slate-700/30">
+                        <td className="px-6 py-4 font-medium text-white">{i.name}</td>
+                        <td className="px-6 py-4">{i.brand} - {i.lot}</td>
+                        <td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span></td>
+                        <td className="px-6 py-4 font-mono text-slate-400">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => deleteHistoryItem(i.id)} className="text-slate-500 hover:text-red-400 p-1.5 hover:bg-slate-700 rounded transition-colors"><Icons.Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
-          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
-          
+
+          {/* MODAL ADICIONAR */}
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div>
+          <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
+          <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
           <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
-          
           <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
+          
+          {/* MODAL EDITAR (NOVO) */}
+          {showEditModal && editingReagent && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+              <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6">
+                <h3 className="text-xl font-bold text-white mb-4">Editar Item</h3>
+                <form onSubmit={handleUpdateReagent} className="space-y-4">
+                  <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} placeholder="Nome" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.brand || ''} onChange={e => setEditingReagent({...editingReagent, brand: e.target.value})} placeholder="Marca" />
+                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.lot || ''} onChange={e => setEditingReagent({...editingReagent, lot: e.target.value})} placeholder="Lote" />
+                  </div>
+                  <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.usage || ''} onChange={e => setEditingReagent({...editingReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.expiryDate || ''} onChange={e => setEditingReagent({...editingReagent, expiryDate: e.target.value})} /></div>
+                    {editingReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={editingReagent.openingDate || ''} onChange={e => setEditingReagent({...editingReagent, openingDate: e.target.value})} /></div>}
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button>
+                    <button type="submit" className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar Alterações</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DAR BAIXA */}
           {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
         </div>
       );
@@ -519,9 +598,9 @@
                 <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
                 <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>
               </div></div>
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
           </div>
-          <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div></div>
+          <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Controle Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura</div></div></div>
           {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
           {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>
