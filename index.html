@@ -64,79 +64,16 @@
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
     @media print {
-      @page { 
-        size: landscape; 
-        margin: 0.5cm; /* Margem reduzida para aproveitar mais a folha */
-      }
+      @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
       .print-only { display: block !important; }
-      body { 
-        background-color: white !important; 
-        color: black !important; 
-        font-size: 12pt; /* Fonte base aumentada */
-        width: 100%;
-      }
-      
-      /* Container principal da impressão */
-      .print-container {
-        width: 100%;
-        max-width: 100%;
-        padding: 0;
-        margin: 0;
-      }
-
-      table.print-table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin-bottom: 20px; 
-        font-size: 11pt; /* Fonte da tabela aumentada */
-        table-layout: auto; /* Permite ajuste automático */
-      }
-      
-      table.print-table th, table.print-table td { 
-        border: 1px solid #000; 
-        padding: 8px 6px; /* Padding ajustado para dar respiro */
-        vertical-align: middle; /* Centraliza verticalmente */
-        text-align: center; /* Centraliza tudo por padrão */
-        word-wrap: break-word; 
-      }
-      
-      /* Alinhamento específico para nomes de reagentes/tarefas à esquerda se necessário */
-      table.print-table td:first-child, table.print-table th:first-child {
-        text-align: left;
-        padding-left: 10px;
-      }
-
-      table.print-table th { 
-        background-color: #e0e0e0 !important; 
-        font-weight: bold; 
-        text-transform: uppercase; 
-        height: 45px; 
-        vertical-align: middle; 
-        font-size: 10pt; /* Cabeçalho ligeiramente menor para caber nomes longos */
-      }
-      
+      body { background-color: white !important; color: black !important; }
+      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; table-layout: fixed; }
+      table.print-table th, table.print-table td { border: 1px solid #000; padding: 4px; vertical-align: top; text-align: left; word-wrap: break-word; }
+      table.print-table th { background-color: #f0f0f0 !important; font-weight: bold; text-transform: uppercase; text-align: center; height: 40px; vertical-align: middle; }
       .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
-      
-      .signature-block { 
-        margin-top: 40px; 
-        display: flex; 
-        justify-content: space-around; /* Espalha melhor as assinaturas */
-        gap: 50px; 
-      }
-      
-      .signature-line { 
-        border-top: 1px solid black; 
-        width: 40%; 
-        text-align: center; 
-        padding-top: 8px; 
-        font-size: 12pt; 
-      }
-
-      /* Ajuste específico para tabela de equipe */
-      table.team-table th {
-        font-size: 9pt; /* Nomes podem ser longos */
-      }
+      .signature-block { margin-top: 30px; display: flex; justify-content: center; gap: 50px; }
+      .signature-line { border-top: 1px solid black; width: 300px; text-align: center; padding-top: 5px; font-size: 12px; }
     }
     .print-only { display: none; }
   </style>
@@ -254,14 +191,33 @@
       Megaphone: (props) => <Icon {...props} path={<><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></>} />,
       MessageSquare: (props) => <Icon {...props} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>} />,
       ArrowRightLeft: (props) => <Icon {...props} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
+      Calculator: (props) => <Icon {...props} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
     };
 
+    // DADOS MISTOS (Reagentes + Padrões do PDF)
     const INITIAL_REAGENTS = [
-      { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
-      { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: '3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
-      { id: '4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      { id: '5', type: 'standard', name: 'Padrão de pH 4.00', brand: 'Digimed', lot: 'P400', expiryDate: '2025-06-01', openingDate: '2024-01-10', usage: 'Calibração' },
+      // REAGENTES QUÍMICOS
+      { id: 'r1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
+      { id: 'r2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
+      { id: 'r3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
+      { id: 'r4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
+      
+      // PADRÕES (Extraídos do PDF)
+      { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123' },
+      { id: 'p2', type: 'standard', name: 'Alcalinidade Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25COO12E' },
+      { id: 'p3', type: 'standard', name: 'Amonia', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4488/23' },
+      { id: 'p4', type: 'standard', name: 'Bromato - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-11-30', brand: 'NSI LAB SOLUTIONS', lot: '211108' },
+      { id: 'p5', type: 'standard', name: 'Cianeto Curva', concentration: '997', unit: 'mg/L', openingDate: '', expiryDate: '2027-08-18', brand: 'CPA CHEM', lot: '1023406' },
+      { id: 'p6', type: 'standard', name: 'Cloreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4518/23' },
+      { id: 'p7', type: 'standard', name: 'Condutividade 1413 µS/cm', concentration: '1413', unit: 'µS/cm', openingDate: '', expiryDate: '2025-10-12', brand: 'Inorganic Ventures', lot: 'T2-COND 724227' },
+      { id: 'p8', type: 'standard', name: 'DQO', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2027-03-17', brand: 'CPA CHEM', lot: '1083145' },
+      { id: 'p9', type: 'standard', name: 'Fenol', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25D0302E' },
+      { id: 'p10', type: 'standard', name: 'Fluoreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-11-13', brand: 'Dinâmica', lot: '152671' },
+      { id: 'p11', type: 'standard', name: 'Nitrato Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25B0492E' },
+      { id: 'p12', type: 'standard', name: 'pH 4,00 (Tampão)', concentration: '4,00', unit: 'pH', openingDate: '', expiryDate: '2025-12-31', brand: 'Visomes', lot: 'L0742' },
+      { id: 'p13', type: 'standard', name: 'pH 7,00 (Tampão)', concentration: '7,00', unit: 'pH', openingDate: '', expiryDate: '2025-09-07', brand: 'CPA CHEM', lot: '926518' },
+      { id: 'p14', type: 'standard', name: 'pH 10,00 (Tampão)', concentration: '10,00', unit: 'pH', openingDate: '', expiryDate: '2026-12-31', brand: 'Merck', lot: 'HC 33255138' },
+      { id: 'p15', type: 'standard', name: 'Turbidez', concentration: '4000', unit: 'NTU', openingDate: '', expiryDate: '2025-03-31', brand: 'Visomes', lot: 'L0750' }
     ];
 
     const INITIAL_STAFF = [
@@ -352,7 +308,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V16</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V17</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -367,7 +323,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v16.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v17.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -655,9 +611,11 @@
       const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
+      // NOVO: Estado para editar reagente
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
 
+      // Função para normalizar strings (remover acentos e minúsculas)
       const normalizeName = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
       const getStatus = (dateStr) => {
@@ -697,6 +655,14 @@
         return null;
       };
 
+      // CALCULAR VALIDADE 1 ANO
+      const calculateExpiry = (openingDate) => {
+        if (!openingDate) return '';
+        const date = new Date(openingDate);
+        date.setFullYear(date.getFullYear() + 1);
+        return date.toISOString().split('T')[0];
+      };
+
       const handleAddReagent = (e) => {
         e.preventDefault(); if (!newReagent.name || !newReagent.expiryDate) return;
         const item = { 
@@ -705,7 +671,10 @@
           type: newReagent.type, 
           brand: newReagent.brand || 'N/A', 
           lot: newReagent.lot || 'N/A',
-          usage: newReagent.usage || '' 
+          usage: newReagent.usage || '',
+          concentration: newReagent.concentration || '',
+          unit: newReagent.unit || '',
+          openingDate: newReagent.openingDate || ''
         };
         setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent', usage: '' });
       };
@@ -758,8 +727,10 @@
                     <div>
                       <h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3>
                       <p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p>
+                      {/* MOSTRAR CONCENTRAÇÃO SE FOR PADRÃO */}
+                      {item.type === 'standard' && item.concentration && <p className="text-xs text-blue-300 mt-1 font-mono">{item.concentration} {item.unit}</p>}
                     </div>
-                    {/* AÇÕES: LÁPIS, BAIXA, LIXEIRA */}
+                    {/* AÇÕES */}
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEditModal(item)} className="text-slate-400 hover:text-blue-400 bg-slate-900/50 p-2 rounded-lg" title="Editar"><Icons.Pencil size={18} /></button>
                       <button onClick={() => { setItemToDelete(item); setShowDeleteModal(true); }} className="text-slate-400 hover:text-purple-400 bg-slate-900/50 p-2 rounded-lg" title="Dar Baixa (Arquivar)"><Icons.Archive size={18} /></button>
@@ -798,25 +769,62 @@
           {/* MODAL ADICIONAR */}
           {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div>
           <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" />
-          <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
-          <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
-          <div className="grid grid-cols-2 gap-4"><div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} /></div>{newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}</div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
           
-          {/* MODAL EDITAR (NOVO) */}
+          {/* NOVOS CAMPOS PARA PADRÃO */}
+          {newReagent.type === 'standard' && (
+            <div className="grid grid-cols-2 gap-4">
+               <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.concentration || ''} onChange={e => setNewReagent({...newReagent, concentration: e.target.value})} placeholder="Concentração (ex: 1000)" />
+               <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || ''} onChange={e => setNewReagent({...newReagent, unit: e.target.value})} placeholder="Unidade (ex: mg/L)" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4"><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.brand || ''} onChange={e => setNewReagent({...newReagent, brand: e.target.value})} placeholder="Marca" /><input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.lot || ''} onChange={e => setNewReagent({...newReagent, lot: e.target.value})} placeholder="Lote" /></div>
+          
+          <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.usage || ''} onChange={e => setNewReagent({...newReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
+          
+          <div className="grid grid-cols-2 gap-4">
+            {newReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={newReagent.openingDate || ''} onChange={e => setNewReagent({...newReagent, openingDate: e.target.value})} /></div>}
+            <div>
+              <label className="text-xs text-slate-400">Validade</label>
+              <div className="flex gap-2">
+                 <input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.expiryDate || ''} onChange={e => setNewReagent({...newReagent, expiryDate: e.target.value})} />
+                 {/* BOTÃO 1 ANO */}
+                 {newReagent.type === 'standard' && <button type="button" onClick={() => setNewReagent({...newReagent, expiryDate: calculateExpiry(newReagent.openingDate)})} className="bg-blue-600/20 text-blue-400 p-2 rounded-lg hover:bg-blue-600/40" title="1 Ano após Abertura"><Icons.Calculator size={20}/></button>}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
+          
+          {/* MODAL EDITAR */}
           {showEditModal && editingReagent && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
               <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4">Editar Item</h3>
                 <form onSubmit={handleUpdateReagent} className="space-y-4">
                   <input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} placeholder="Nome" />
+                  
+                  {editingReagent.type === 'standard' && (
+                    <div className="grid grid-cols-2 gap-4">
+                       <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.concentration || ''} onChange={e => setEditingReagent({...editingReagent, concentration: e.target.value})} placeholder="Conc." />
+                       <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit || ''} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})} placeholder="Unid." />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.brand || ''} onChange={e => setEditingReagent({...editingReagent, brand: e.target.value})} placeholder="Marca" />
                     <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.lot || ''} onChange={e => setEditingReagent({...editingReagent, lot: e.target.value})} placeholder="Lote" />
                   </div>
                   <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.usage || ''} onChange={e => setEditingReagent({...editingReagent, usage: e.target.value})} placeholder="Uso (Opcional)" />
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs text-slate-400">Validade</label><input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.expiryDate || ''} onChange={e => setEditingReagent({...editingReagent, expiryDate: e.target.value})} /></div>
                     {editingReagent.type === 'standard' && <div><label className="text-xs text-blue-400">Abertura</label><input type="date" className="w-full bg-slate-900 border border-blue-500/50 rounded-lg p-3 text-white" value={editingReagent.openingDate || ''} onChange={e => setEditingReagent({...editingReagent, openingDate: e.target.value})} /></div>}
+                    <div>
+                      <label className="text-xs text-slate-400">Validade</label>
+                      <div className="flex gap-2">
+                        <input required type="date" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.expiryDate || ''} onChange={e => setEditingReagent({...editingReagent, expiryDate: e.target.value})} />
+                         {/* BOTÃO 1 ANO EDIT */}
+                         {editingReagent.type === 'standard' && <button type="button" onClick={() => setEditingReagent({...editingReagent, expiryDate: calculateExpiry(editingReagent.openingDate)})} className="bg-blue-600/20 text-blue-400 p-2 rounded-lg hover:bg-blue-600/40" title="1 Ano após Abertura"><Icons.Calculator size={20}/></button>}
+                      </div>
+                    </div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400 hover:bg-slate-700 rounded-lg">Cancelar</button>
