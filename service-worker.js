@@ -1,13 +1,13 @@
-const CACHE_NAME = 'qgi-lab-v11-reagents-update';
+const CACHE_NAME = 'qgi-lab-v14-task-transfer';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './icon.png',
   'https://unpkg.com/react@18/umd/react.development.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
   'https://unpkg.com/@babel/standalone/babel.min.js',
-  'https://cdn.tailwindcss.com',
-  'https://cdn-icons-png.flaticon.com/512/2906/2906274.png'
+  'https://cdn.tailwindcss.com'
 ];
 
 self.addEventListener('install', (event) => {

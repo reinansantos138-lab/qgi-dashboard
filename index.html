@@ -10,7 +10,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- Ícone Local (Renomeie sua imagem para icon.png) -->
   <link rel="icon" type="image/png" href="./icon.png">
   <link rel="apple-touch-icon" href="./icon.png">
 
@@ -59,6 +58,11 @@
   
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
     @media print {
       @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
@@ -74,6 +78,7 @@
     .print-only { display: none; }
   </style>
 
+  <!-- FIREBASE SETUP -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -111,6 +116,7 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // --- SYNC HOOK ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
         try {
@@ -181,6 +187,9 @@
       Bell: (props) => <Icon {...props} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
       Cloud: (props) => <Icon {...props} path={<><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/><path d="m15.5 8.5-3.5-3.5-3.5 3.5"/></>} />,
       Refresh: (props) => <Icon {...props} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
+      Megaphone: (props) => <Icon {...props} path={<><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></>} />,
+      MessageSquare: (props) => <Icon {...props} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>} />,
+      ArrowRightLeft: (props) => <Icon {...props} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
     };
 
     const INITIAL_REAGENTS = [
@@ -226,6 +235,7 @@
           case 'reagents': return <ReagentManager onBack={() => setCurrentView('home')} />;
           case 'tasks': return <TaskManager onBack={() => setCurrentView('home')} />;
           case 'army': return <ArmyControlledManager onBack={() => setCurrentView('home')} />;
+          case 'notices': return <NoticeBoard onBack={() => setCurrentView('home')} />;
           default: return <HomeDashboard onNavigate={setCurrentView} />;
         }
       };
@@ -278,14 +288,14 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V12</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V14</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-            <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
-            <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
+            <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico de descarte." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
+            <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe técnica." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
-            
+            <DashboardCard title="Mural de Avisos" description="Comunicados internos e alertas para a equipe." icon={<Icons.Megaphone size={40} />} color="bg-amber-500" onClick={() => onNavigate('notices')} />
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
@@ -293,7 +303,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v12.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v14.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -318,6 +328,135 @@
       );
     }
 
+    // --- NOTICE BOARD (NOVO MÓDULO) ---
+    function NoticeBoard({ onBack }) {
+      const [notices, setNotices] = useSyncedState('notices', []);
+      const [author, setAuthor] = useState('');
+      const [message, setMessage] = useState('');
+
+      const addNotice = (e) => {
+        e.preventDefault();
+        if (!author.trim() || !message.trim()) return;
+
+        const newNotice = {
+          id: Date.now().toString(),
+          author: author,
+          message: message,
+          date: new Date().toISOString()
+        };
+
+        setNotices([newNotice, ...notices]);
+        setAuthor('');
+        setMessage('');
+
+        // Tentar enviar notificação local
+        if (Notification.permission === 'granted') {
+          new Notification(`Novo Aviso de ${newNotice.author}`, {
+            body: newNotice.message,
+            icon: './icon.png'
+          });
+        }
+      };
+
+      const deleteNotice = (id) => {
+        if(confirm('Apagar este aviso?')) {
+          setNotices(notices.filter(n => n.id !== id));
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div className="flex items-center gap-4">
+              <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors">
+                <Icons.ArrowLeft size={24} />
+              </button>
+              <div>
+                <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <Icons.Megaphone className="text-amber-500" /> Mural de Avisos
+                </h2>
+                <p className="text-slate-400 text-sm">Comunicados importantes para a equipe.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Formulário */}
+            <div className="lg:col-span-1">
+              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl sticky top-6">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Icons.Plus size={20} /> Novo Aviso
+                </h3>
+                <form onSubmit={addNotice} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Seu Nome</label>
+                    <input 
+                      className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none"
+                      value={author}
+                      onChange={e => setAuthor(e.target.value)}
+                      placeholder="Ex: João Silva"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Mensagem</label>
+                    <textarea 
+                      className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none h-32 resize-none"
+                      value={message}
+                      onChange={e => setMessage(e.target.value)}
+                      placeholder="Digite o aviso aqui..."
+                      required
+                    ></textarea>
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors">
+                    Publicar Aviso
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Lista de Avisos */}
+            <div className="lg:col-span-2 space-y-4">
+              {notices.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed">
+                  <Icons.MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>Nenhum aviso publicado ainda.</p>
+                </div>
+              ) : (
+                notices.map(notice => (
+                  <div key={notice.id} className="bg-slate-800/60 border border-slate-700 p-6 rounded-2xl relative group animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-xs">
+                          {notice.author.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-white">{notice.author}</h4>
+                          <span className="text-xs text-slate-500">
+                            {new Date(notice.date).toLocaleDateString('pt-BR')} às {new Date(notice.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => deleteNotice(notice.id)}
+                        className="text-slate-600 hover:text-red-400 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Apagar Aviso"
+                      >
+                        <Icons.Trash2 size={18} />
+                      </button>
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-10">
+                      {notice.message}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function TaskManager({ onBack }) {
       const [staff, setStaff] = useSyncedState('staff', INITIAL_STAFF); 
       const [activeTab, setActiveTab] = useState('ensaios'); 
@@ -328,11 +467,71 @@
       const [newStaffName, setNewStaffName] = useState('');
       const [newStaffRole, setNewStaffRole] = useState('Tecnico');
 
+      // NOVOS ESTADOS PARA TRANSFERÊNCIA
+      const [showTransferModal, setShowTransferModal] = useState(false);
+      const [transferData, setTransferData] = useState(null); // { type: 'all' | 'single', fromId: string, taskId?: string, taskType?: 'quality' | 'normal' }
+      const [targetStaffId, setTargetStaffId] = useState('');
+
       const addTask = (staffId, type) => { if (!newTaskText.trim()) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { const task = { id: Date.now().toString(), text: newTaskText }; if (type === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, task] }; return { ...s, tasks: [...s.tasks, task] }; } return s; })); setNewTaskText(''); setSelectedStaffId(null); };
       const removeTask = (staffId, taskId, type) => { if (isLocked) return; setStaff(prev => prev.map(s => { if (s.id === staffId) { if (type === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) }; return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) }; } return s; })); };
       const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
       const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
+
+      // --- LÓGICA DE TRANSFERÊNCIA ---
+      const initiateTransfer = (type, fromId, taskId = null, taskType = null) => {
+        setTransferData({ type, fromId, taskId, taskType });
+        setShowTransferModal(true);
+        setTargetStaffId(''); // Reset select
+      };
+
+      const executeTransfer = () => {
+        if (!targetStaffId || !transferData) return;
+        
+        const { type, fromId, taskId, taskType } = transferData;
+
+        if (type === 'all') {
+          // Transferir TUDO de A para B
+          const sourceMember = staff.find(s => s.id === fromId);
+          if (!sourceMember) return;
+
+          setStaff(prev => prev.map(s => {
+            if (s.id === targetStaffId) {
+              return {
+                ...s,
+                tasks: [...s.tasks, ...sourceMember.tasks],
+                qualityTasks: [...s.qualityTasks, ...sourceMember.qualityTasks]
+              };
+            }
+            if (s.id === fromId) {
+              return { ...s, tasks: [], qualityTasks: [] };
+            }
+            return s;
+          }));
+        } else if (type === 'single') {
+          // Transferir UMA tarefa
+          const sourceMember = staff.find(s => s.id === fromId);
+          let taskToMove;
+          if (taskType === 'quality') taskToMove = sourceMember.qualityTasks.find(t => t.id === taskId);
+          else taskToMove = sourceMember.tasks.find(t => t.id === taskId);
+
+          if (!taskToMove) return;
+
+          setStaff(prev => prev.map(s => {
+            if (s.id === targetStaffId) {
+              if (taskType === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, taskToMove] };
+              return { ...s, tasks: [...s.tasks, taskToMove] };
+            }
+            if (s.id === fromId) {
+              if (taskType === 'quality') return { ...s, qualityTasks: s.qualityTasks.filter(t => t.id !== taskId) };
+              return { ...s, tasks: s.tasks.filter(t => t.id !== taskId) };
+            }
+            return s;
+          }));
+        }
+        setShowTransferModal(false);
+        setTransferData(null);
+      };
 
       const PrintTable = ({ title, type }) => {
         const maxRows = staff.reduce((max, member) => Math.max(max, (type === 'quality' ? member.qualityTasks : member.tasks).length), 0);
@@ -365,9 +564,40 @@
             {activeTab === 'equipe' ? (
               <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; return <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden"><div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50"><h3 className="font-bold text-white">{person.name}</h3></div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; return <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden"><div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white">{person.name}</h3>
+                    {/* BOTÃO TROCA GERAL */}
+                    {!isLocked && <button onClick={() => initiateTransfer('all', person.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Transferir Todas as Tarefas"><Icons.ArrowRightLeft size={16} /></button>}
+                  </div>
+                </div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <div className="flex gap-1"><button onClick={() => initiateTransfer('single', person.id, task.id, taskType)} className="text-slate-500 hover:text-blue-400"><Icons.ArrowRightLeft size={14} /></button><button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button></div>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
             )}
           </div>
+          
+          {/* MODAL TRANSFERÊNCIA */}
+          {showTransferModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
+              <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Icons.ArrowRightLeft className="text-blue-400" /> Transferir Para:
+                </h3>
+                <select 
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-6 focus:outline-none focus:border-blue-500"
+                  value={targetStaffId}
+                  onChange={(e) => setTargetStaffId(e.target.value)}
+                >
+                  <option value="">Selecione um técnico...</option>
+                  {staff.filter(s => s.id !== transferData.fromId).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                  ))}
+                </select>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowTransferModal(false)} className="flex-1 py-2 rounded-lg text-slate-400 hover:bg-slate-700">Cancelar</button>
+                  <button onClick={executeTransfer} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-50" disabled={!targetStaffId}>Confirmar</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
