@@ -64,16 +64,79 @@
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
     @media print {
-      @page { size: landscape; margin: 0.5cm; }
+      @page { 
+        size: landscape; 
+        margin: 0.5cm; /* Margem reduzida para aproveitar mais a folha */
+      }
       .no-print { display: none !important; }
       .print-only { display: block !important; }
-      body { background-color: white !important; color: black !important; }
-      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; table-layout: fixed; }
-      table.print-table th, table.print-table td { border: 1px solid #000; padding: 4px; vertical-align: top; text-align: left; word-wrap: break-word; }
-      table.print-table th { background-color: #f0f0f0 !important; font-weight: bold; text-transform: uppercase; text-align: center; height: 40px; vertical-align: middle; }
+      body { 
+        background-color: white !important; 
+        color: black !important; 
+        font-size: 12pt; /* Fonte base aumentada */
+        width: 100%;
+      }
+      
+      /* Container principal da impressão */
+      .print-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+
+      table.print-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-bottom: 20px; 
+        font-size: 11pt; /* Fonte da tabela aumentada */
+        table-layout: auto; /* Permite ajuste automático */
+      }
+      
+      table.print-table th, table.print-table td { 
+        border: 1px solid #000; 
+        padding: 8px 6px; /* Padding ajustado para dar respiro */
+        vertical-align: middle; /* Centraliza verticalmente */
+        text-align: center; /* Centraliza tudo por padrão */
+        word-wrap: break-word; 
+      }
+      
+      /* Alinhamento específico para nomes de reagentes/tarefas à esquerda se necessário */
+      table.print-table td:first-child, table.print-table th:first-child {
+        text-align: left;
+        padding-left: 10px;
+      }
+
+      table.print-table th { 
+        background-color: #e0e0e0 !important; 
+        font-weight: bold; 
+        text-transform: uppercase; 
+        height: 45px; 
+        vertical-align: middle; 
+        font-size: 10pt; /* Cabeçalho ligeiramente menor para caber nomes longos */
+      }
+      
       .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
-      .signature-block { margin-top: 30px; display: flex; justify-content: center; gap: 50px; }
-      .signature-line { border-top: 1px solid black; width: 300px; text-align: center; padding-top: 5px; font-size: 12px; }
+      
+      .signature-block { 
+        margin-top: 40px; 
+        display: flex; 
+        justify-content: space-around; /* Espalha melhor as assinaturas */
+        gap: 50px; 
+      }
+      
+      .signature-line { 
+        border-top: 1px solid black; 
+        width: 40%; 
+        text-align: center; 
+        padding-top: 8px; 
+        font-size: 12pt; 
+      }
+
+      /* Ajuste específico para tabela de equipe */
+      table.team-table th {
+        font-size: 9pt; /* Nomes podem ser longos */
+      }
     }
     .print-only { display: none; }
   </style>
@@ -289,7 +352,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V15</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V16</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -304,7 +367,7 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v15.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v16.0 • ID: {window.LAB_ID}</p>
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -350,7 +413,6 @@
         setAuthor('');
         setMessage('');
 
-        // Tentar enviar notificação local
         if (Notification.permission === 'granted') {
           new Notification(`Novo Aviso de ${newNotice.author}`, {
             body: newNotice.message,
@@ -382,7 +444,6 @@
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Formulário */}
             <div className="lg:col-span-1">
               <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl sticky top-6">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -416,7 +477,6 @@
               </div>
             </div>
 
-            {/* Lista de Avisos */}
             <div className="lg:col-span-2 space-y-4">
               {notices.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed">
@@ -467,7 +527,6 @@
       const [filterRole, setFilterRole] = useState('Todos');
       const [newStaffName, setNewStaffName] = useState('');
       const [newStaffRole, setNewStaffRole] = useState('Tecnico');
-
       const [showTransferModal, setShowTransferModal] = useState(false);
       const [transferData, setTransferData] = useState(null); 
       const [targetStaffId, setTargetStaffId] = useState('');
@@ -478,7 +537,6 @@
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
       const filteredStaff = staff.filter(s => filterRole === 'Todos' || s.role === filterRole);
 
-      // --- LÓGICA DE TRANSFERÊNCIA ATUALIZADA (SWAP) ---
       const initiateTransfer = (type, fromId, taskId = null, taskType = null) => {
         setTransferData({ type, fromId, taskId, taskType });
         setShowTransferModal(true);
@@ -487,34 +545,22 @@
 
       const executeTransfer = () => {
         if (!targetStaffId || !transferData) return;
-        
         const { type, fromId, taskId, taskType } = transferData;
-
         if (type === 'all') {
-          // SWAP TOTAL: A -> B e B -> A
           const sourceMember = staff.find(s => s.id === fromId);
           const targetMember = staff.find(s => s.id === targetStaffId);
-          
           if (!sourceMember || !targetMember) return;
-
           setStaff(prev => prev.map(s => {
-            if (s.id === fromId) {
-              return { ...s, tasks: targetMember.tasks, qualityTasks: targetMember.qualityTasks };
-            }
-            if (s.id === targetStaffId) {
-              return { ...s, tasks: sourceMember.tasks, qualityTasks: sourceMember.qualityTasks };
-            }
+            if (s.id === fromId) return { ...s, tasks: targetMember.tasks, qualityTasks: targetMember.qualityTasks };
+            if (s.id === targetStaffId) return { ...s, tasks: sourceMember.tasks, qualityTasks: sourceMember.qualityTasks };
             return s;
           }));
         } else if (type === 'single') {
-          // Transferência simples de UMA tarefa
           const sourceMember = staff.find(s => s.id === fromId);
           let taskToMove;
           if (taskType === 'quality') taskToMove = sourceMember.qualityTasks.find(t => t.id === taskId);
           else taskToMove = sourceMember.tasks.find(t => t.id === taskId);
-
           if (!taskToMove) return;
-
           setStaff(prev => prev.map(s => {
             if (s.id === targetStaffId) {
               if (taskType === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, taskToMove] };
@@ -535,9 +581,9 @@
         const maxRows = staff.reduce((max, member) => Math.max(max, (type === 'quality' ? member.qualityTasks : member.tasks).length), 0);
         const rows = Math.max(maxRows, 5);
         return (
-          <div className="print-only">
+          <div className="print-only print-container">
             <h2 className="text-xl font-bold text-black mb-2 uppercase border-b-2 border-black pb-1">{title}</h2>
-            <table className="print-table">
+            <table className="print-table team-table">
               <thead><tr>{staff.map(m => <th key={m.id}>{m.name}<br/><span className="font-normal text-[8px] normal-case">{m.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></th>)}</tr></thead>
               <tbody>{Array.from({ length: rows }).map((_, rowIndex) => <tr key={rowIndex}>{staff.map(m => <td key={m.id}>{(type === 'quality' ? m.qualityTasks : m.tasks)[rowIndex]?.text || ''}</td>)}</tr>)}</tbody>
             </table>
@@ -547,7 +593,7 @@
 
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
-          <div className="print-only"><div className="mb-4 text-center"><h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório</h1></div><PrintTable title="Ensaios Analíticos" type="normal" /><div className="page-break"></div><PrintTable title="Gestão da Qualidade" type="quality" /><div className="signature-block"><div className="signature-line">Responsável</div></div></div>
+          <div className="print-only print-container"><div className="mb-4 text-center"><h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório</h1></div><PrintTable title="Ensaios Analíticos" type="normal" /><div className="page-break"></div><PrintTable title="Gestão da Qualidade" type="quality" /><div className="signature-block"><div className="signature-line">Responsável</div></div></div>
           <div className="no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6">
               <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ClipboardList className="text-indigo-400" /> Distribuição & Equipe</h2><p className="text-slate-400 text-sm">Sincronizado via Nuvem</p></div></div>
@@ -562,110 +608,35 @@
             {activeTab === 'equipe' ? (
               <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in zoom-in duration-300">
-                {filteredStaff.map((person) => { 
-                  const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; 
-                  const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; 
-                  const roleColor = person.role === 'Tecnico' ? 'border-l-4 border-l-indigo-500' : 'border-l-4 border-l-purple-500';
-
-                  return (
-                    <div key={person.id} className={`flex flex-col bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg ${roleColor}`}>
-                      {/* CABEÇALHO DO CARD */}
-                      <div className="p-4 bg-slate-900/50 border-b border-slate-700 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${person.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>
-                             {person.name.charAt(0)}
-                           </div>
-                           <div>
-                             <h3 className="font-bold text-white text-sm">{person.name}</h3>
-                             <span className="text-[10px] text-slate-400 uppercase tracking-widest">{person.role}</span>
-                           </div>
-                        </div>
-                        {/* BOTÃO TROCA GERAL (SWAP) */}
-                        {!isLocked && (
-                          <button onClick={() => initiateTransfer('all', person.id)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-blue-400 transition-colors" title="Trocar Todas as Tarefas">
-                            <Icons.ArrowRightLeft size={16} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* LISTA DE TAREFAS (DESIGN NOVO) */}
-                      <div className="flex-1 p-3 bg-slate-800/50 min-h-[200px] space-y-2">
-                        {currentTasks.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                             <span className="text-xs italic">Sem tarefas atribuídas</span>
-                          </div>
-                        ) : (
-                          currentTasks.map((task) => (
-                            <div key={task.id} className="group relative flex items-center justify-between p-3 rounded-lg bg-slate-700/40 border border-slate-600/30 hover:border-slate-500 hover:bg-slate-700/60 transition-all">
-                                <span className="text-sm text-slate-200 font-medium leading-tight pr-8">{task.text}</span>
-                                
-                                {/* AÇÕES DA TAREFA (APARECEM NO HOVER/TOUCH) */}
-                                {!isLocked && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800/90 p-1 rounded-md shadow-lg backdrop-blur-sm">
-                                    <button onClick={() => initiateTransfer('single', person.id, task.id, taskType)} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded"><Icons.ArrowRightLeft size={14} /></button>
-                                    <button onClick={() => removeTask(person.id, task.id, taskType)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded"><Icons.Trash2 size={14} /></button>
-                                  </div>
-                                )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-
-                      {/* RODAPÉ (ADICIONAR) */}
-                      {!isLocked && (
-                        <div className="p-3 bg-slate-900/80 border-t border-slate-700">
-                          {selectedStaffId === person.id ? (
-                            <div className="flex gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200">
-                              <input autoFocus type="text" className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Nova tarefa..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} />
-                              <button onClick={() => addTask(person.id, taskType)} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-500"><Icons.Plus size={18} /></button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg border border-dashed border-slate-700 hover:border-blue-500/50 transition-all uppercase tracking-wider">
-                              <Icons.Plus size={12} /> Adicionar
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; return <div key={person.id} className="flex flex-col bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden"><div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/50">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white">{person.name}</h3>
+                    {!isLocked && <button onClick={() => initiateTransfer('all', person.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Trocar Todas as Tarefas"><Icons.ArrowRightLeft size={16} /></button>}
+                  </div>
+                </div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <div className="flex gap-1"><button onClick={() => initiateTransfer('single', person.id, task.id, taskType)} className="text-slate-500 hover:text-blue-400"><Icons.ArrowRightLeft size={14} /></button><button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button></div>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
             )}
           </div>
           
-          {/* MODAL TRANSFERÊNCIA (SWAP) */}
           {showTransferModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in duration-200">
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Icons.ArrowRightLeft size={24} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">
-                    {transferData.type === 'all' ? 'Trocar Todas as Tarefas' : 'Transferir Tarefa'}
-                  </h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    {transferData.type === 'all' 
-                      ? 'Selecione o parceiro para realizar a troca completa de ensaios.' 
-                      : 'Selecione quem irá receber esta tarefa.'}
-                  </p>
-                </div>
-
+              <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Icons.ArrowRightLeft className="text-blue-400" /> {transferData.type === 'all' ? 'Trocar Todas as Tarefas' : 'Transferir Tarefa'}
+                </h3>
+                <p className="text-sm text-slate-400 mb-4">{transferData.type === 'all' ? 'Selecione com quem deseja trocar (Swap):' : 'Selecione para quem transferir:'}</p>
                 <select 
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-6 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer hover:bg-slate-950 transition-colors"
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-6 focus:outline-none focus:border-blue-500"
                   value={targetStaffId}
                   onChange={(e) => setTargetStaffId(e.target.value)}
                 >
-                  <option value="">Selecione um técnico...</option>
+                  <option value="">Selecione...</option>
                   {staff.filter(s => s.id !== transferData.fromId).map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
                   ))}
                 </select>
-
                 <div className="flex gap-3">
-                  <button onClick={() => setShowTransferModal(false)} className="flex-1 py-3 rounded-lg text-slate-400 hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                  <button onClick={executeTransfer} className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!targetStaffId}>Confirmar</button>
+                  <button onClick={() => setShowTransferModal(false)} className="flex-1 py-2 rounded-lg text-slate-400 hover:bg-slate-700">Cancelar</button>
+                  <button onClick={executeTransfer} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-50" disabled={!targetStaffId}>Confirmar</button>
                 </div>
               </div>
             </div>
@@ -684,11 +655,9 @@
       const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
-      // NOVO: Estado para editar reagente
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
 
-      // Função para normalizar strings (remover acentos e minúsculas)
       const normalizeName = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
       const getStatus = (dateStr) => {
@@ -699,30 +668,22 @@
       };
 
       const filteredList = useMemo(() => {
-        let list = reagents.filter(r => {
-          const typeMatch = (r.type === activeTab || (!r.type && activeTab === 'reagent'));
-          const searchNorm = normalizeName(searchTerm);
-          const nameNorm = normalizeName(r.name);
-          const brandNorm = normalizeName(r.brand);
-          return typeMatch && (nameNorm.includes(searchNorm) || brandNorm.includes(searchNorm));
-        });
+        let list = (Array.isArray(reagents) ? reagents : []).filter(r => (r.type === activeTab || (!r.type && activeTab === 'reagent')) && (normalizeName(r.name).includes(normalizeName(searchTerm)) || normalizeName(r.brand).includes(normalizeName(searchTerm))));
         list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
         return list;
       }, [reagents, searchTerm, activeTab]);
 
       const historyList = useMemo(() => {
-        let list = history.filter(h => normalizeName(h.name).includes(normalizeName(searchTerm)));
+        let list = (Array.isArray(history) ? history : []).filter(h => normalizeName(h.name).includes(normalizeName(searchTerm)));
         list.sort((a, b) => new Date(b.removedDate).getTime() - new Date(a.removedDate).getTime());
         return list;
       }, [history, searchTerm]);
 
-      // BADGE DE SUGESTÃO (MELHORADO COM NORMALIZAÇÃO)
       const getSuggestionBadge = (item, list) => {
         if (activeTab === 'history') return null;
         const normItemName = normalizeName(item.name);
         const duplicates = list.filter(r => normalizeName(r.name) === normItemName);
         if (duplicates.length > 1) {
-          // Ordena duplicatas por validade para garantir que o "primeiro" é o que vence logo
           duplicates.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
           const isFirst = duplicates[0].id === item.id;
           if (isFirst) {
@@ -904,7 +865,13 @@
               </div></div>
             <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
           </div>
-          <div className="print-only"><h1 className="text-xl font-bold uppercase text-center mb-2">Controle Exército</h1><div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês:</span> {selectedMonth} / {selectedYear}</div><table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table><div className="signature-block"><div className="signature-line">Assinatura</div></div></div>
+          <div className="print-only print-container">
+            <h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1>
+            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div>
+            <table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table>
+            <div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div>
+          </div>
+
           {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
           {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>

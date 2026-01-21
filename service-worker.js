@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v15-swap-redesign';
+const CACHE_NAME = 'qgi-lab-v16-print-fix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
