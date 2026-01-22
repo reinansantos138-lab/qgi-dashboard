@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v20-autocomplete-update';
+const CACHE_NAME = 'qgi-lab-v21-external-link';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,7 +7,9 @@ const ASSETS_TO_CACHE = [
   'https://unpkg.com/react@18/umd/react.development.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
   'https://unpkg.com/@babel/standalone/babel.min.js',
-  'https://cdn.tailwindcss.com'
+  'https://cdn.tailwindcss.com',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 ];
 
 self.addEventListener('install', (event) => {

@@ -17,8 +17,11 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   
   <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         if (window.location.protocol.startsWith('http')) {
@@ -41,16 +44,8 @@
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'sans-serif'] },
-          animation: {
-            'fade-in-down': 'fadeInDown 0.8s ease-out',
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            fadeInDown: {
-              '0%': { opacity: '0', transform: 'translateY(-20px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            }
-          }
+          animation: { 'fade-in-down': 'fadeInDown 0.8s ease-out' },
+          keyframes: { fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
         }
       }
     }
@@ -58,25 +53,18 @@
   
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #0f172a; }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
     @media print {
       @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
       .print-only { display: block !important; }
       body { background-color: white !important; color: black !important; font-size: 12pt; width: 100%; }
       .print-container { width: 100%; }
-      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; table-layout: auto; }
-      table.print-table th, table.print-table td { border: 1px solid #000; padding: 8px 6px; vertical-align: middle; text-align: center; word-wrap: break-word; }
-      table.print-table td:first-child, table.print-table th:first-child { text-align: left; padding-left: 10px; }
-      table.print-table th { background-color: #e0e0e0 !important; font-weight: bold; text-transform: uppercase; height: 45px; font-size: 10pt; }
-      .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
-      .signature-block { margin-top: 40px; display: flex; justify-content: space-around; gap: 50px; }
-      .signature-line { border-top: 1px solid black; width: 40%; text-align: center; padding-top: 8px; font-size: 12pt; }
-      table.team-table th { font-size: 9pt; }
+      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }
+      table.print-table th, table.print-table td { border: 1px solid #000; padding: 4px; text-align: center; }
+      table.print-table td:first-child { text-align: left; }
+      table.print-table th { background-color: #e0e0e0 !important; }
+      .signature-block { margin-top: 40px; display: flex; justify-content: space-around; }
+      .signature-line { border-top: 1px solid black; width: 40%; text-align: center; padding-top: 5px; }
     }
     .print-only { display: none; }
   </style>
@@ -84,7 +72,7 @@
   <!-- FIREBASE SETUP -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -105,26 +93,26 @@
     signInAnonymously(auth).catch(console.error);
     try { enableIndexedDbPersistence(db).catch(() => {}); } catch(e) {}
 
-    window.db = db;
-    window.doc = doc;
-    window.onSnapshot = onSnapshot;
+    // Expondo funcoes necessarias para o React
+    window.db = db; 
+    window.doc = doc; 
+    window.collection = collection;
+    window.onSnapshot = onSnapshot; 
     window.setDoc = setDoc;
+    window.auth = auth; // Necessário para pegar o UID do usuário para presença
+
     window.dispatchEvent(new Event('firebase-ready'));
   </script>
 </head>
 <body class="text-slate-100 overflow-x-hidden selection:bg-blue-500 selection:text-white">
-
   <div id="root"></div>
-
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // --- SYNC HOOK ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
-        try {
-          const saved = localStorage.getItem(`qgi_${key}`);
-          return saved ? JSON.parse(saved) : initialValue;
-        } catch (e) { return initialValue; }
+        try { return JSON.parse(localStorage.getItem(`qgi_${key}`)) || initialValue; } catch (e) { return initialValue; }
       });
       const isRemoteUpdate = useRef(false);
 
@@ -143,13 +131,12 @@
             }
           });
         };
-        if (window.db) connect();
-        else window.addEventListener('firebase-ready', connect);
+        if (window.db) connect(); else window.addEventListener('firebase-ready', connect);
         return () => { unsubscribe(); window.removeEventListener('firebase-ready', connect); };
       }, [key]);
 
       const update = (newDataOrFn) => {
-        let newData = typeof newDataOrFn === 'function' ? newDataOrFn(data) : newDataOrFn;
+        const newData = typeof newDataOrFn === 'function' ? newDataOrFn(data) : newDataOrFn;
         isRemoteUpdate.current = false;
         setData(newData);
         localStorage.setItem(`qgi_${key}`, JSON.stringify(newData));
@@ -158,53 +145,47 @@
       return [data, update];
     }
 
-    const Icon = ({ path, size = 24, className = "" }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
-    );
-
+    const Icon = ({ path, size = 24, className = "" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>;
     const Icons = {
-      Beaker: (props) => <Icon {...props} path={<><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></>} />,
-      ClipboardList: (props) => <Icon {...props} path={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></>} />,
-      Plus: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
-      Search: (props) => <Icon {...props} path={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>} />,
-      ArrowLeft: (props) => <Icon {...props} path={<><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>} />,
-      Calendar: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
-      CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
-      Lock: (props) => <Icon {...props} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />,
-      Unlock: (props) => <Icon {...props} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></>} />,
-      Printer: (props) => <Icon {...props} path={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></>} />,
-      Trash2: (props) => <Icon {...props} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
-      User: (props) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
-      GraduationCap: (props) => <Icon {...props} path={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>} />,
-      FlaskConical: (props) => <Icon {...props} path={<><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></>} />,
-      ShieldCheck: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>} />,
-      Users: (props) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
-      ShieldAlert: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
-      Pencil: (props) => <Icon {...props} path={<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></>} />,
-      Clock: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
-      AlertCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
-      Archive: (props) => <Icon {...props} path={<><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3"/><line x1="10" x2="14" y1="12" y2="12"/></>} />,
-      History: (props) => <Icon {...props} path={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></>} />,
-      Filter: (props) => <Icon {...props} path={<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>} />,
-      FolderOpen: (props) => <Icon {...props} path={<><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></>} />,
-      Bell: (props) => <Icon {...props} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
-      Cloud: (props) => <Icon {...props} path={<><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/><path d="m15.5 8.5-3.5-3.5-3.5 3.5"/></>} />,
-      Refresh: (props) => <Icon {...props} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
-      Megaphone: (props) => <Icon {...props} path={<><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></>} />,
-      MessageSquare: (props) => <Icon {...props} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>} />,
-      ArrowRightLeft: (props) => <Icon {...props} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
-      Calculator: (props) => <Icon {...props} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
+      Beaker: (p) => <Icon {...p} path={<><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></>} />,
+      ClipboardList: (p) => <Icon {...p} path={<><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></>} />,
+      Plus: (p) => <Icon {...p} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
+      Search: (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>} />,
+      ArrowLeft: (p) => <Icon {...p} path={<><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>} />,
+      Calendar: (p) => <Icon {...p} path={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
+      CheckCircle: (p) => <Icon {...p} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
+      Lock: (p) => <Icon {...p} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />,
+      Unlock: (p) => <Icon {...p} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></>} />,
+      Printer: (p) => <Icon {...p} path={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></>} />,
+      Trash2: (p) => <Icon {...p} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+      User: (p) => <Icon {...p} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+      GraduationCap: (p) => <Icon {...p} path={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>} />,
+      FlaskConical: (p) => <Icon {...p} path={<><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></>} />,
+      ShieldCheck: (p) => <Icon {...p} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>} />,
+      Users: (p) => <Icon {...p} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
+      ShieldAlert: (p) => <Icon {...p} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
+      Pencil: (p) => <Icon {...p} path={<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></>} />,
+      Clock: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+      AlertCircle: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
+      Archive: (p) => <Icon {...p} path={<><polyline points="21 8 21 21 3 21 3 8"/><rect width="22" height="5" x="1" y="3"/><line x1="10" x2="14" y1="12" y2="12"/></>} />,
+      History: (p) => <Icon {...p} path={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></>} />,
+      Filter: (p) => <Icon {...p} path={<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>} />,
+      FolderOpen: (p) => <Icon {...p} path={<><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></>} />,
+      Bell: (p) => <Icon {...p} path={<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>} />,
+      Cloud: (p) => <Icon {...p} path={<><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V5"/><path d="m15.5 8.5-3.5-3.5-3.5 3.5"/></>} />,
+      Refresh: (p) => <Icon {...p} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
+      Megaphone: (p) => <Icon {...p} path={<><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></>} />,
+      MessageSquare: (p) => <Icon {...p} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>} />,
+      ArrowRightLeft: (p) => <Icon {...p} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
+      Calculator: (p) => <Icon {...p} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
+      Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></>} />,
+      ExternalLink: (p) => <Icon {...p} path={<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></>} />
     };
 
-    // DADOS MISTOS (Reagentes + Padrões do PDF)
+    // --- DADOS DO PDF PREENCHIDOS ---
     const INITIAL_REAGENTS = [
-      // REAGENTES QUÍMICOS
-      { id: 'r1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
-      { id: 'r2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: 'r3', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Neon', lot: 'C100', expiryDate: '2024-02-15', usage: 'Geral' },
-      { id: 'r4', type: 'reagent', name: 'Sulfato de Cobre', brand: 'Dinâmica', lot: 'D999', expiryDate: '2025-10-10', usage: 'Ensaios Qualitativos' },
-      
-      // PADRÕES
+      { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
+      { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
       { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123', usage: 'Verificação' },
       { id: 'p2', type: 'standard', name: 'Alcalinidade Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25COO12E', usage: 'Verificação' },
       { id: 'p3', type: 'standard', name: 'Amonia', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4488/23', usage: 'Verificação' },
@@ -268,6 +249,7 @@
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
       const [permission, setPermission] = useState(Notification.permission);
+      const [onlineUsers, setOnlineUsers] = useState(1);
 
       useEffect(() => { 
         let mounted = true; 
@@ -290,6 +272,42 @@
           } catch(e) {}
         };
         checkAndNotify();
+
+        // Lógica de Presença Online
+        if (window.db && window.LAB_ID && window.auth) {
+           // Função auxiliar para lidar com presença anonima
+           const handlePresence = async () => {
+             const user = window.auth.currentUser;
+             if (!user) return;
+             
+             const uid = user.uid;
+             const presenceRef = window.doc(window.db, 'labs', window.LAB_ID, 'presence', uid);
+             
+             // Heartbeat a cada 30s
+             const heartbeat = setInterval(() => {
+                if(mounted) window.setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
+             }, 30000);
+             
+             // Initial write
+             window.setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
+
+             // Listener
+             const colRef = window.collection(window.db, 'labs', window.LAB_ID, 'presence');
+             const unsubPresence = window.onSnapshot(colRef, (snap) => {
+               if(!mounted) return;
+               const now = Date.now();
+               // Conta usuários ativos nos últimos 60 segundos
+               const activeCount = snap.docs.filter(d => (now - d.data().lastSeen) < 60000).length;
+               setOnlineUsers(activeCount || 1);
+             });
+
+             return () => { clearInterval(heartbeat); unsubPresence(); };
+           };
+
+           // Aguarda auth estar pronto se necessário, mas como ja inicializamos no head, tentamos rodar
+           handlePresence();
+        }
+
         return () => { mounted = false; clearInterval(t); }; 
       }, []);
 
@@ -310,7 +328,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V20</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V21</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -318,6 +336,19 @@
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe técnica." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
             <DashboardCard title="Mural de Avisos" description="Comunicados internos e alertas para a equipe." icon={<Icons.Megaphone size={40} />} color="bg-amber-500" onClick={() => onNavigate('notices')} />
+            
+            {/* NOVO CARD: SOLICITAÇÕES & ADMINISTRAÇÃO */}
+            <button onClick={() => window.open('https://reinansantos138-lab.github.io/labflow-2026/', '_blank')} className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none text-left overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600 opacity-20 blur-[60px] rounded-full group-hover:opacity-30 transition-opacity duration-500"></div>
+               <div className="w-full flex justify-between items-start">
+                  <div className="p-4 rounded-2xl bg-slate-700/30 text-white mb-4 group-hover:scale-110 transition-transform duration-500 shadow-inner ring-1 ring-white/10"><Icons.ExternalLink size={40} /></div>
+               </div>
+               <div className="relative z-10 w-full mt-auto">
+                  <h3 className="text-2xl font-bold text-white mb-2 tracking-wide group-hover:text-blue-300 transition-colors drop-shadow-md">Solicitações & Admin</h3>
+                  <p className="text-slate-400 font-medium leading-relaxed group-hover:text-slate-300 transition-colors">Acesso ao painel externo de pedidos.</p>
+               </div>
+            </button>
+
             <div className="group relative flex flex-col items-center justify-center p-8 h-64 rounded-3xl border-2 border-dashed border-slate-700/50 bg-slate-800/20 backdrop-blur-sm transition-all duration-300 opacity-60 hover:opacity-100 hover:border-slate-500 hover:bg-slate-800/40 cursor-pointer">
               <div className="bg-slate-700/50 p-4 rounded-full mb-4 transition-transform group-hover:scale-110"><Icons.Plus size={32} className="text-slate-400" /></div>
               <h3 className="text-xl font-medium text-slate-400">Novo Módulo</h3>
@@ -325,7 +356,17 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v20.0 • ID: {window.LAB_ID}</p>
+            <p>Sistema QGI v21.0 • ID: {window.LAB_ID}</p>
+            
+            {/* CONTADOR DE USUÁRIOS */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+               <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+               </span>
+               {onlineUsers} {onlineUsers === 1 ? 'Pessoa online' : 'Pessoas online'}
+            </div>
+
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
               <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
             </button>
@@ -613,6 +654,7 @@
       const [newReagent, setNewReagent] = useState({ type: 'reagent', usage: '' });
       const [showDeleteModal, setShowDeleteModal] = useState(false);
       const [itemToDelete, setItemToDelete] = useState(null);
+      // NOVO: Estado para editar reagente
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
 
