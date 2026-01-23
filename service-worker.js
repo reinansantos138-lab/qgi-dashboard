@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v24-calendar-pro';
+const CACHE_NAME = 'qgi-lab-v25-calendar-pro-plus';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
