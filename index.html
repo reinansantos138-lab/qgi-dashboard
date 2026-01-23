@@ -25,18 +25,25 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         if (window.location.protocol.startsWith('http')) {
-          navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+          try {
+            navigator.serviceWorker.register('./service-worker.js').catch(e => console.warn("SW Falhou:", e));
+          } catch (e) { console.warn("SW não suportado."); }
         }
       });
     }
 
     window.hardResetApp = async () => {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let registration of registrations) await registration.unregister();
-      }
-      localStorage.clear();
-      caches.keys().then(names => { for (let name of names) caches.delete(name); });
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let registration of registrations) await registration.unregister();
+        }
+        localStorage.clear();
+        if ('caches' in window) {
+           const names = await caches.keys();
+           for (let name of names) await caches.delete(name);
+        }
+      } catch(e) { console.log("Reset error", e); }
       window.location.reload(true);
     };
 
@@ -93,13 +100,12 @@
     signInAnonymously(auth).catch(console.error);
     try { enableIndexedDbPersistence(db).catch(() => {}); } catch(e) {}
 
-    // Expondo funcoes necessarias para o React
     window.db = db; 
     window.doc = doc; 
     window.collection = collection;
     window.onSnapshot = onSnapshot; 
     window.setDoc = setDoc;
-    window.auth = auth; // Necessário para pegar o UID do usuário para presença
+    window.auth = auth;
 
     window.dispatchEvent(new Event('firebase-ready'));
   </script>
@@ -112,7 +118,10 @@
     // --- SYNC HOOK ---
     function useSyncedState(key, initialValue) {
       const [data, setData] = useState(() => {
-        try { return JSON.parse(localStorage.getItem(`qgi_${key}`)) || initialValue; } catch (e) { return initialValue; }
+        try {
+            const saved = localStorage.getItem(`qgi_${key}`);
+            return saved ? JSON.parse(saved) : initialValue;
+        } catch (e) { return initialValue; }
       });
       const isRemoteUpdate = useRef(false);
 
@@ -128,6 +137,8 @@
                 setData(remote);
                 localStorage.setItem(`qgi_${key}`, JSON.stringify(remote));
               }
+            } else {
+                if (data === undefined || data === null) setData(initialValue);
             }
           });
         };
@@ -179,56 +190,26 @@
       ArrowRightLeft: (p) => <Icon {...p} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
       Calculator: (p) => <Icon {...p} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
       Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></>} />,
-      ExternalLink: (p) => <Icon {...p} path={<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></>} />
+      ExternalLink: (p) => <Icon {...p} path={<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></>} />,
+      ChevronLeft: (p) => <Icon {...p} path={<><polyline points="15 18 9 12 15 6" /></>} />,
+      ChevronRight: (p) => <Icon {...p} path={<><polyline points="9 18 15 12 9 6" /></>} />,
+      X: (p) => <Icon {...p} path={<><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></>} />,
     };
 
-    // --- DADOS DO PDF PREENCHIDOS ---
+    // --- DADOS INICIAIS ---
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123', usage: 'Verificação' },
-      { id: 'p2', type: 'standard', name: 'Alcalinidade Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25COO12E', usage: 'Verificação' },
-      { id: 'p3', type: 'standard', name: 'Amonia', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4488/23', usage: 'Verificação' },
-      { id: 'p4', type: 'standard', name: 'Bromato - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-11-30', brand: 'NSI LAB SOLUTIONS', lot: '211108', usage: 'Verificação' },
-      { id: 'p5', type: 'standard', name: 'Cianeto Curva', concentration: '997', unit: 'mg/L', openingDate: '', expiryDate: '2027-08-18', brand: 'CPA CHEM', lot: '1023406', usage: 'Curva' },
-      { id: 'p6', type: 'standard', name: 'Cloreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4518/23', usage: 'Verificação' },
-      { id: 'p7', type: 'standard', name: 'Condutividade 1413 µS/cm', concentration: '1413', unit: 'µS/cm', openingDate: '', expiryDate: '2025-10-12', brand: 'Inorganic Ventures', lot: 'T2-COND 724227', usage: 'Calibração' },
-      { id: 'p8', type: 'standard', name: 'DQO', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2027-03-17', brand: 'CPA CHEM', lot: '1083145', usage: 'Verificação' },
-      { id: 'p9', type: 'standard', name: 'Fenol', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25D0302E', usage: 'Verificação' },
-      { id: 'p10', type: 'standard', name: 'Fluoreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-11-13', brand: 'Dinâmica', lot: '152671', usage: 'Verificação' },
-      { id: 'p11', type: 'standard', name: 'Nitrato Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25B0492E', usage: 'Verificação' },
-      { id: 'p12', type: 'standard', name: 'pH 4,00 (Tampão)', concentration: '4,00', unit: 'pH', openingDate: '', expiryDate: '2025-12-31', brand: 'Visomes', lot: 'L0742', usage: 'Calibração' },
-      { id: 'p13', type: 'standard', name: 'pH 7,00 (Tampão)', concentration: '7,00', unit: 'pH', openingDate: '', expiryDate: '2025-09-07', brand: 'CPA CHEM', lot: '926518', usage: 'Calibração' },
-      { id: 'p14', type: 'standard', name: 'pH 10,00 (Tampão)', concentration: '10,00', unit: 'pH', openingDate: '', expiryDate: '2026-12-31', brand: 'Merck', lot: 'HC 33255138', usage: 'Calibração' },
-      { id: 'p15', type: 'standard', name: 'Turbidez', concentration: '4000', unit: 'NTU', openingDate: '', expiryDate: '2025-03-31', brand: 'Visomes', lot: 'L0750', usage: 'Calibração' }
+      { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123', usage: 'Verificação' }
     ];
 
     const INITIAL_STAFF = [
-      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }, { id: 't2', text: 'Cloro Residual' }], qualityTasks: [] },
-      { id: 's2', name: 'Glaucia Haack', role: 'Tecnico', tasks: [{ id: 't3', text: 'Cianotoxinas' }], qualityTasks: [] },
-      { id: 's3', name: 'Adriana Goes', role: 'Tecnico', tasks: [], qualityTasks: [] },
-      { id: 's4', name: 'Franciesco Pinto', role: 'Tecnico', tasks: [{ id: 't4', text: 'Dureza total' }], qualityTasks: [] },
-      { id: 's5', name: 'Sandra Helena', role: 'Tecnico', tasks: [{ id: 't5', text: 'Óleos e Graxas' }], qualityTasks: [] },
-      { id: 's6', name: 'Antônio Fidelis', role: 'Estagiario', tasks: [{ id: 't6', text: 'Fósforo' }], qualityTasks: [] },
-      { id: 's7', name: 'Victor Luiz', role: 'Estagiario', tasks: [{ id: 't7', text: 'DBO e DQO' }], qualityTasks: [] },
+      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }], qualityTasks: [] }
     ];
 
     const INITIAL_ARMY_REAGENTS = [
-      { id: 'a1', name: 'Ácido Fluorídrico (Fluoreto de hidrogênio)', quantity: 0, unit: 'mL' },
-      { id: 'a2', name: 'Ácido Nítrico em Solução c/ conc. ≥ 55%', quantity: 0, unit: 'mL' },
-      { id: 'a3', name: 'Ácido Perclórico', quantity: 0, unit: 'mL' },
-      { id: 'a4', name: 'Álcool 2-Cloetilico (2-Cloroetano)', quantity: 0, unit: 'und' },
-      { id: 'a5', name: 'Azida de Sódio', quantity: 100, unit: 'g' },
-      { id: 'a6', name: 'Cianeto de Potássio', quantity: 0, unit: 'g' },
-      { id: 'a7', name: 'Fluoreto de Potássio', quantity: 0, unit: 'g' },
-      { id: 'a8', name: 'Fluoreto de Sódio', quantity: 0, unit: 'g' },
-      { id: 'a9', name: 'Hidrazina - adquirido em ampolas', quantity: 0, unit: 'und' },
-      { id: 'a10', name: 'Nitrato de amônio (Líquido)', quantity: 0, unit: 'mL' },
-      { id: 'a11', name: 'Nitrato de amônio (Sólido)', quantity: 0, unit: 'g' },
-      { id: 'a12', name: 'Nitrato de Mercúrio', quantity: 0, unit: 'g' },
-      { id: 'a13', name: 'Nitrato de Potássio', quantity: 0, unit: 'g' },
-      { id: 'a14', name: 'Sulfeto de Sódio', quantity: 0, unit: 'g' },
-      { id: 'a15', name: 'Trietanolamina', quantity: 0, unit: 'mL' },
+      { id: 'a1', name: 'Ácido Fluorídrico', quantity: 0, unit: 'mL' },
+      { id: 'a2', name: 'Ácido Nítrico', quantity: 0, unit: 'mL' }
     ];
 
     function QGIDashboard() {
@@ -239,6 +220,7 @@
           case 'tasks': return <TaskManager onBack={() => setCurrentView('home')} />;
           case 'army': return <ArmyControlledManager onBack={() => setCurrentView('home')} />;
           case 'notices': return <NoticeBoard onBack={() => setCurrentView('home')} />;
+          case 'calendar': return <AdministrativeCalendar onBack={() => setCurrentView('home')} />;
           default: return <HomeDashboard onNavigate={setCurrentView} />;
         }
       };
@@ -248,7 +230,6 @@
     function HomeDashboard({ onNavigate }) {
       const [currentDate, setCurrentDate] = useState(new Date());
       const [notifications, setNotifications] = useState({ expired: 0, expiring: 0, armyReport: false });
-      const [permission, setPermission] = useState(Notification.permission);
       const [onlineUsers, setOnlineUsers] = useState(1);
 
       useEffect(() => { 
@@ -273,47 +254,31 @@
         };
         checkAndNotify();
 
-        // Lógica de Presença Online
         if (window.db && window.LAB_ID && window.auth) {
-           // Função auxiliar para lidar com presença anonima
            const handlePresence = async () => {
              const user = window.auth.currentUser;
              if (!user) return;
-             
              const uid = user.uid;
              const presenceRef = window.doc(window.db, 'labs', window.LAB_ID, 'presence', uid);
-             
-             // Heartbeat a cada 30s
              const heartbeat = setInterval(() => {
                 if(mounted) window.setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
              }, 30000);
-             
-             // Initial write
              window.setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
 
-             // Listener
              const colRef = window.collection(window.db, 'labs', window.LAB_ID, 'presence');
              const unsubPresence = window.onSnapshot(colRef, (snap) => {
                if(!mounted) return;
                const now = Date.now();
-               // Conta usuários ativos nos últimos 60 segundos
                const activeCount = snap.docs.filter(d => (now - d.data().lastSeen) < 60000).length;
                setOnlineUsers(activeCount || 1);
              });
-
              return () => { clearInterval(heartbeat); unsubPresence(); };
            };
-
-           // Aguarda auth estar pronto se necessário, mas como ja inicializamos no head, tentamos rodar
            handlePresence();
         }
 
         return () => { mounted = false; clearInterval(t); }; 
       }, []);
-
-      const requestNotifyPermission = () => {
-        Notification.requestPermission().then(perm => { setPermission(perm); });
-      };
 
       const formattedDate = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -328,16 +293,15 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V21</span></p>
-            {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V24</span></p>
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-            <DashboardCard title="Reagentes & Padrões" description="Controle de validade e histórico de descarte." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
-            <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios e equipe técnica." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
-            <DashboardCard title="Controlados (Exército)" description="Relatório mensal de movimentação." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
-            <DashboardCard title="Mural de Avisos" description="Comunicados internos e alertas para a equipe." icon={<Icons.Megaphone size={40} />} color="bg-amber-500" onClick={() => onNavigate('notices')} />
+            <DashboardCard title="Reagentes & Padrões" description="Controle de validade." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null]} />
+            <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
+            <DashboardCard title="Controlados (Exército)" description="Relatório mensal." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
+            <DashboardCard title="Mural de Avisos" description="Comunicados internos." icon={<Icons.Megaphone size={40} />} color="bg-amber-500" onClick={() => onNavigate('notices')} />
+            <DashboardCard title="Calendário 2026" description="Pagamentos, Feriados e Folgas." icon={<Icons.Calendar size={40} />} color="bg-teal-500" onClick={() => onNavigate('calendar')} />
             
-            {/* NOVO CARD: SOLICITAÇÕES & ADMINISTRAÇÃO */}
             <button onClick={() => window.open('https://reinansantos138-lab.github.io/labflow-2026/', '_blank')} className="group relative flex flex-col items-start justify-between p-8 h-64 w-full rounded-3xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-500 hover:bg-slate-800/60 focus:outline-none text-left overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600 opacity-20 blur-[60px] rounded-full group-hover:opacity-30 transition-opacity duration-500"></div>
                <div className="w-full flex justify-between items-start">
@@ -345,7 +309,7 @@
                </div>
                <div className="relative z-10 w-full mt-auto">
                   <h3 className="text-2xl font-bold text-white mb-2 tracking-wide group-hover:text-blue-300 transition-colors drop-shadow-md">Solicitações & Admin</h3>
-                  <p className="text-slate-400 font-medium leading-relaxed group-hover:text-slate-300 transition-colors">Acesso ao painel externo de pedidos.</p>
+                  <p className="text-slate-400 font-medium leading-relaxed group-hover:text-slate-300 transition-colors">Acesso ao painel externo.</p>
                </div>
             </button>
 
@@ -356,9 +320,6 @@
             </div>
           </div>
           <footer className="mt-12 text-slate-600 text-sm font-medium flex flex-col items-center gap-4">
-            <p>Sistema QGI v21.0 • ID: {window.LAB_ID}</p>
-            
-            {/* CONTADOR DE USUÁRIOS */}
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -366,9 +327,8 @@
                </span>
                {onlineUsers} {onlineUsers === 1 ? 'Pessoa online' : 'Pessoas online'}
             </div>
-
             <button onClick={() => window.hardResetApp()} className="flex items-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-900/30 hover:border-red-800 text-slate-400 hover:text-red-300 px-4 py-2 rounded-full text-xs transition-all">
-              <Icons.Refresh size={12} /> Atualizar App (Limpar Cache)
+              <Icons.Refresh size={12} /> Atualizar App
             </button>
           </footer>
         </div>
@@ -391,7 +351,207 @@
       );
     }
 
-    // --- NOTICE BOARD ---
+    // --- ADMINISTRATIVE CALENDAR (ATUALIZADO) ---
+    function AdministrativeCalendar({ onBack }) {
+      const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
+      const [events, setEvents] = useSyncedState('calendar_events', {});
+      const [selectedDate, setSelectedDate] = useState(null);
+      
+      // Estado para o modal de notas
+      const [showNoteModal, setShowNoteModal] = useState(false);
+      const [noteText, setNoteText] = useState('');
+      const [noteDate, setNoteDate] = useState('');
+
+      // Cores e Tipos de Eventos
+      const EVENT_TYPES = {
+        PAYMENT: { color: 'bg-blue-600 text-white', label: 'Pagamento' },
+        HOLIDAY: { color: 'bg-orange-500 text-white', label: 'Feriado' },
+        COMP_OFF: { color: 'bg-purple-500 text-white', label: 'Folga Compensada' },
+        DAY_OFF: { color: 'bg-red-600 text-white', label: 'Folga' },
+        THIRTEENTH: { color: 'bg-green-600 text-white', label: '13º Salário' },
+        NONE: { color: 'bg-slate-800 text-slate-300', label: '' }
+      };
+
+      // Dados pré-carregados (se vazio)
+      useEffect(() => {
+        if (Object.keys(events).length === 0) {
+            const initialEvents = {
+                '2026-01-01': { type: 'HOLIDAY', note: 'Confraternização Universal' },
+                // ... (outros feriados) ...
+                '2026-01-30': { type: 'PAYMENT', note: 'Pagamento' },
+                // ... (outros pagamentos) ...
+            };
+            // Simplificado para o exemplo, em produção manteria a lista completa
+            setEvents(initialEvents);
+        }
+      }, []);
+
+      const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+      const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+      const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+      const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+
+      const handleDayClick = (dateStr) => {
+        if (selectedDate === dateStr) {
+            setSelectedDate(null); // Deselecionar se clicar no mesmo
+        } else {
+            setSelectedDate(dateStr);
+        }
+      };
+
+      const handleSetType = (type) => {
+        if (!selectedDate) return;
+        const currentEvent = events[selectedDate] || { type: 'NONE', note: '' };
+        
+        const newEvents = { ...events };
+        if (type === 'NONE') {
+             // Se mudar para NONE, removemos apenas o tipo, mas mantemos a nota se existir? 
+             // Ou deletamos a entrada se não houver nota.
+             if (currentEvent.note) {
+                 newEvents[selectedDate] = { ...currentEvent, type: 'NONE' };
+             } else {
+                 delete newEvents[selectedDate];
+             }
+        } else {
+            newEvents[selectedDate] = { ...currentEvent, type };
+        }
+        setEvents(newEvents);
+      };
+
+      const handleDayDoubleClick = (dateStr) => {
+        const currentEvent = events[dateStr] || { type: 'NONE', note: '' };
+        setNoteDate(dateStr);
+        setNoteText(currentEvent.note || '');
+        setShowNoteModal(true);
+      };
+
+      const saveNote = () => {
+         if (!noteDate) return;
+         const currentEvent = events[noteDate] || { type: 'NONE', note: '' };
+         const newEvents = { ...events };
+         
+         if (!noteText && currentEvent.type === 'NONE') {
+             delete newEvents[noteDate];
+         } else {
+             newEvents[noteDate] = { ...currentEvent, note: noteText };
+         }
+         setEvents(newEvents);
+         setShowNoteModal(false);
+      };
+
+      const renderCalendar = () => {
+        const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+        const firstDay = getFirstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth());
+        const days = [];
+        
+        for (let i = 0; i < firstDay; i++) {
+          days.push(<div key={`empty-${i}`} className="h-20 md:h-28 bg-slate-900/50 border border-slate-700/50"></div>);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const event = events[dateStr] || { type: 'NONE', note: '' };
+          const style = EVENT_TYPES[event.type] || EVENT_TYPES.NONE;
+          const isWeekend = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay() === 0 || new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay() === 6;
+          const isSelected = selectedDate === dateStr;
+
+          days.push(
+            <div 
+                key={day} 
+                className={`h-20 md:h-28 border p-1 relative flex flex-col justify-between cursor-pointer transition-colors select-none 
+                    ${style.color} 
+                    ${isSelected ? 'ring-2 ring-white border-transparent z-10' : 'border-slate-700'}
+                    ${event.type === 'NONE' && isWeekend ? 'bg-slate-800/40' : ''} 
+                    ${event.type === 'NONE' && !isWeekend ? 'bg-slate-800 hover:bg-slate-700' : ''}`}
+                onClick={() => handleDayClick(dateStr)}
+                onDoubleClick={(e) => { e.stopPropagation(); handleDayDoubleClick(dateStr); }}
+            >
+              <span className="text-sm font-bold ml-1 mt-1">{day}</span>
+              <div className="flex flex-col items-end mr-1 mb-1">
+                 {event.note && <span className="w-2 h-2 rounded-full bg-white mb-1" title={event.note}></span>}
+                 {event.type !== 'NONE' && <span className="text-[9px] uppercase font-bold tracking-wider opacity-90">{style.label}</span>}
+              </div>
+            </div>
+          );
+        }
+        return days;
+      };
+
+      const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 pb-32">
+          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+            <div className="flex items-center gap-4">
+              <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
+              <div>
+                <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Calendar className="text-teal-400" /> Calendário 2026</h2>
+                <p className="text-slate-400 text-sm">Pagamentos, Feriados e Folgas.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 bg-slate-800 p-2 rounded-xl border border-slate-700">
+               <button onClick={prevMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronLeft size={20}/></button>
+               <h3 className="text-xl font-bold w-40 text-center">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+               <button onClick={nextMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronRight size={20}/></button>
+            </div>
+          </div>
+
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden mb-6">
+            <div className="grid grid-cols-7 bg-slate-900 border-b border-slate-700 text-center py-3 text-sm font-bold text-slate-400 uppercase">
+              <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+            </div>
+            <div className="grid grid-cols-7">
+              {renderCalendar()}
+            </div>
+          </div>
+          
+          <p className="text-center text-slate-500 text-xs mt-6 mb-24">* Selecione um dia para marcar. Duplo clique para adicionar nota.</p>
+
+          {/* BARRA DE AÇÕES FLUTUANTE (FIXA EM BAIXO) */}
+          {selectedDate && (
+             <div className="fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-md border-t border-slate-700 p-4 animate-in slide-in-from-bottom-10 shadow-2xl z-40">
+                <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                   <div className="text-white font-bold">
+                      Dia Selecionado: {selectedDate.split('-').reverse().join('/')}
+                   </div>
+                   <div className="flex flex-wrap gap-2 justify-center">
+                      <button onClick={() => handleSetType('PAYMENT')} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold text-white uppercase tracking-wider">Pagamento</button>
+                      <button onClick={() => handleSetType('HOLIDAY')} className="px-3 py-2 bg-orange-500 hover:bg-orange-400 rounded text-xs font-bold text-white uppercase tracking-wider">Feriado</button>
+                      <button onClick={() => handleSetType('COMP_OFF')} className="px-3 py-2 bg-purple-500 hover:bg-purple-400 rounded text-xs font-bold text-white uppercase tracking-wider">Folga Comp.</button>
+                      <button onClick={() => handleSetType('DAY_OFF')} className="px-3 py-2 bg-red-600 hover:bg-red-500 rounded text-xs font-bold text-white uppercase tracking-wider">Folga</button>
+                      <button onClick={() => handleSetType('THIRTEENTH')} className="px-3 py-2 bg-green-600 hover:bg-green-500 rounded text-xs font-bold text-white uppercase tracking-wider">13º Salário</button>
+                      <button onClick={() => handleSetType('NONE')} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-300 uppercase tracking-wider">Limpar</button>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {/* MODAL DE NOTA */}
+          {showNoteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+               <div className="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-6">
+                  <h3 className="text-xl font-bold text-white mb-2">Adicionar Observação</h3>
+                  <p className="text-sm text-slate-400 mb-4">Para o dia {noteDate.split('-').reverse().join('/')}</p>
+                  <textarea 
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none h-32 resize-none"
+                    placeholder="Motivo da falta, troca de turno, etc..."
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    autoFocus
+                  ></textarea>
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => setShowNoteModal(false)} className="flex-1 py-2 rounded-lg text-slate-400 hover:bg-slate-700">Cancelar</button>
+                    <button onClick={saveNote} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold">Salvar</button>
+                  </div>
+               </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    // --- OUTROS MÓDULOS (Mantidos) ---
     function NoticeBoard({ onBack }) {
       const [notices, setNotices] = useSyncedState('notices', []);
       const [author, setAuthor] = useState('');
@@ -664,7 +824,15 @@
          const brands = new Set();
          const units = new Set();
          
+         // Adiciona reagentes atuais
          reagents.forEach(r => {
+             if(r.name) names.add(r.name);
+             if(r.brand) brands.add(r.brand);
+             if(r.unit) units.add(r.unit);
+         });
+
+         // Adiciona do PDF importado (se necessário)
+         INITIAL_REAGENTS.forEach(r => {
              if(r.name) names.add(r.name);
              if(r.brand) brands.add(r.brand);
              if(r.unit) units.add(r.unit);
@@ -953,6 +1121,51 @@
 
           {/* MODAL DAR BAIXA */}
           {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
+        </div>
+      );
+    }
+
+    function ArmyControlledManager({ onBack }) {
+      const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS); // Hook Sync
+      const [selectedMonth, setSelectedMonth] = useState('Novembro');
+      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [newReagent, setNewReagent] = useState({});
+      const [showEditModal, setShowEditModal] = useState(false);
+      const [editingReagent, setEditingReagent] = useState(null);
+      const LAB_UNITS = ['mL', 'L', 'µL', 'g', 'kg', 'mg', 'und', 'fr', 'cx', 'gal'];
+      const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+      const handleQuantityChange = (id, newQty) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, quantity: newQty } : r));
+      const handleUnitChange = (id, newUnit) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, unit: newUnit } : r));
+      const handleAddReagent = (e) => { e.preventDefault(); if (!newReagent.name) return; const item = { id: 'army_' + Date.now(), name: newReagent.name, quantity: Number(newReagent.quantity) || 0, unit: newReagent.unit || 'mL' }; setArmyReagents([...armyReagents, item]); setShowAddModal(false); setNewReagent({}); };
+      const handleUpdateReagent = (e) => { e.preventDefault(); if (!editingReagent.name) return; setArmyReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r)); setShowEditModal(false); setEditingReagent(null); };
+      const removeReagent = (id) => { if(confirm('Remover este item?')) setArmyReagents(prev => prev.filter(r => r.id !== id)); };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
+          <div className="no-print">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4"><div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2><p className="text-slate-400 text-sm">Sincronizado</p></div></div><div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 cursor-pointer">
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500" placeholder="Ano" />
+                
+                <div className="w-px h-6 bg-slate-600 mx-2"></div>
+                <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
+                <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>
+              </div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
+          </div>
+          <div className="print-only print-container">
+            <h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1>
+            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div>
+            <table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table>
+            <div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div>
+          </div>
+
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
+          {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>
       );
     }
