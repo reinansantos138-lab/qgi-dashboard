@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v27-print-sort';
+const CACHE_NAME = 'qgi-lab-v28-pdf-sorting-standards';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
