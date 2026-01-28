@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v26-save-fix';
+const CACHE_NAME = 'qgi-lab-v27-print-sort';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
