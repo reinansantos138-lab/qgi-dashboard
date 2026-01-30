@@ -71,7 +71,7 @@
         border-collapse: collapse; 
         margin-bottom: 20px; 
         font-size: 9pt; 
-        table-layout: fixed; /* Garante colunas iguais */
+        table-layout: fixed;
       }
       table.print-table th, table.print-table td { 
         border: 1px solid #000; 
@@ -81,10 +81,7 @@
         word-wrap: break-word;
       }
       table.print-table th { background-color: #e0e0e0 !important; font-weight: bold; }
-      
-      /* Força a quebra de página específica */
       .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
-      
       .signature-block { margin-top: 40px; display: flex; justify-content: space-around; }
       .signature-line { border-top: 1px solid black; width: 40%; text-align: center; padding-top: 5px; }
     }
@@ -316,7 +313,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V28</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V25</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -531,6 +528,7 @@
       const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
 
+      // --- LÓGICA DE TRANSFERÊNCIA ATUALIZADA (SWAP) ---
       const initiateTransfer = (type, fromId, taskId = null, taskType = null) => {
         setTransferData({ type, fromId, taskId, taskType });
         setShowTransferModal(true);
@@ -540,21 +538,27 @@
       const executeTransfer = () => {
         if (!targetStaffId || !transferData) return;
         const { type, fromId, taskId, taskType } = transferData;
+
         if (type === 'all') {
+          // SWAP TOTAL: A -> B e B -> A
           const sourceMember = staff.find(s => s.id === fromId);
           const targetMember = staff.find(s => s.id === targetStaffId);
           if (!sourceMember || !targetMember) return;
+
           setStaff(prev => prev.map(s => {
             if (s.id === fromId) return { ...s, tasks: targetMember.tasks, qualityTasks: targetMember.qualityTasks };
             if (s.id === targetStaffId) return { ...s, tasks: sourceMember.tasks, qualityTasks: sourceMember.qualityTasks };
             return s;
           }));
         } else if (type === 'single') {
+          // Transferência simples de UMA tarefa
           const sourceMember = staff.find(s => s.id === fromId);
           let taskToMove;
           if (taskType === 'quality') taskToMove = sourceMember.qualityTasks.find(t => t.id === taskId);
           else taskToMove = sourceMember.tasks.find(t => t.id === taskId);
+
           if (!taskToMove) return;
+
           setStaff(prev => prev.map(s => {
             if (s.id === targetStaffId) {
               if (taskType === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, taskToMove] };
@@ -613,7 +617,7 @@
             {activeTab !== 'equipe' && <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50"><div className="flex gap-2">{['Todos', 'Tecnico', 'Estagiario'].map((role) => <button key={role} onClick={() => setFilterRole(role)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase ${filterRole === role ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>{role === 'Tecnico' ? 'Técnicos' : role === 'Estagiario' ? 'Estagiários' : 'Todos'}</button>)}</div><div className="flex items-center gap-3"><button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium border ${isLocked ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-red-500/10 border-red-500/50 text-red-400 animate-pulse'}`}>{isLocked ? <Icons.Lock size={14} /> : <Icons.Unlock size={14} />} {isLocked ? 'Travado' : 'Editando'}</button><button onClick={()=>window.print()} className="p-2 rounded bg-slate-100 text-slate-900"><Icons.Printer size={18} /></button></div></div>}
             
             {activeTab === 'equipe' ? (
-              <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{sortedStaff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
+              <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { 
                 const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; 
@@ -689,6 +693,242 @@
       );
     }
 
+    // --- ADMINISTRATIVE CALENDAR (NOVO) ---
+    function AdministrativeCalendar({ onBack }) {
+      const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
+      const [events, setEvents] = useSyncedState('calendar_events', {});
+      const [selectedDate, setSelectedDate] = useState(null);
+      
+      const [showNoteModal, setShowNoteModal] = useState(false);
+      const [noteText, setNoteText] = useState('');
+      const [noteDate, setNoteDate] = useState('');
+      const [noteAuthor, setNoteAuthor] = useState('');
+      
+      const [staff] = useSyncedState('staff', INITIAL_STAFF);
+
+      // CORES E TIPOS
+      const EVENT_TYPES = {
+        PAYMENT: { color: 'bg-blue-600 text-white', label: 'Pagamento' },
+        HOLIDAY: { color: 'bg-orange-500 text-white', label: 'Feriado' },
+        COMP_OFF: { color: 'bg-purple-500 text-white', label: 'Folga Compensada' },
+        DAY_OFF: { color: 'bg-red-600 text-white', label: 'Folga' },
+        THIRTEENTH: { color: 'bg-green-600 text-white', label: '13º Salário' },
+        NONE: { color: 'bg-slate-800 text-slate-300', label: '' }
+      };
+
+      useEffect(() => {
+        if (events['2026-01-16']) {
+             const newEv = {...events};
+             delete newEv['2026-01-16'];
+             delete newEv['2026-01-30']; 
+             setEvents(newEv);
+        }
+      }, []);
+
+      const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+      const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+      const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+      const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+
+      const handleDayClick = (dateStr) => {
+        if (selectedDate === dateStr) {
+            setSelectedDate(null);
+        } else {
+            setSelectedDate(dateStr);
+        }
+      };
+
+      const handleSetType = (type) => {
+        if (!selectedDate) return;
+        const currentEvent = events[selectedDate] || { type: 'NONE', note: '' };
+        
+        const newEvents = { ...events };
+        if (type === 'NONE') {
+             if (currentEvent.note) {
+                 newEvents[selectedDate] = { ...currentEvent, type: 'NONE' };
+             } else {
+                 delete newEvents[selectedDate];
+             }
+        } else {
+            newEvents[selectedDate] = { ...currentEvent, type };
+        }
+        setEvents(newEvents);
+      };
+
+      const handleDayDoubleClick = (dateStr) => {
+        const currentEvent = events[dateStr] || { type: 'NONE', note: '', author: '' };
+        setNoteDate(dateStr);
+        setNoteText(currentEvent.note || '');
+        setNoteAuthor(currentEvent.author || '');
+        setShowNoteModal(true);
+      };
+
+      const saveNote = () => {
+         if (!noteDate) return;
+         const currentEvent = events[noteDate] || { type: 'NONE', note: '' };
+         const newEvents = { ...events };
+         
+         if (!noteText && currentEvent.type === 'NONE') {
+             delete newEvents[noteDate];
+         } else {
+             newEvents[noteDate] = { ...currentEvent, note: noteText, author: noteAuthor };
+         }
+         setEvents(newEvents);
+         setShowNoteModal(false);
+      };
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const renderCalendar = () => {
+        const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+        const firstDay = getFirstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth());
+        const days = [];
+        
+        for (let i = 0; i < firstDay; i++) {
+          days.push(<div key={`empty-${i}`} className="h-24 md:h-32 bg-slate-900/50 border border-slate-700/50"></div>);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const event = events[dateStr] || { type: 'NONE', note: '' };
+          const style = EVENT_TYPES[event.type] || EVENT_TYPES.NONE;
+          const isWeekend = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay() === 0 || new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay() === 6;
+          const isSelected = selectedDate === dateStr;
+          const isToday = dateStr === todayStr;
+
+          days.push(
+            <div 
+                key={day} 
+                className={`h-24 md:h-32 border p-1 relative flex flex-col justify-between cursor-pointer transition-all select-none overflow-hidden
+                    ${style.color} 
+                    ${isSelected ? 'ring-2 ring-white border-transparent z-10 scale-[1.02] shadow-xl' : 'border-slate-700'}
+                    ${isToday ? 'ring-2 ring-emerald-400' : ''}
+                    ${event.type === 'NONE' && isWeekend ? 'bg-slate-800/40' : ''} 
+                    ${event.type === 'NONE' && !isWeekend ? 'bg-slate-800 hover:bg-slate-700' : ''}`}
+                onClick={() => handleDayClick(dateStr)}
+                onDoubleClick={(e) => { e.stopPropagation(); handleDayDoubleClick(dateStr); }}
+            >
+              <div className="flex justify-between items-start">
+                  <span className={`text-sm font-bold ml-1 mt-1 ${isToday ? 'text-emerald-400' : ''}`}>{day}</span>
+                  {isToday && <span className="text-[9px] text-emerald-400 font-bold uppercase mr-1 mt-1">Hoje</span>}
+              </div>
+              
+              <div className="flex flex-col items-start px-1 w-full">
+                 {/* NOTA EXPANDIDA NO BLOCO */}
+                 {event.note && (
+                    <div className="bg-white/20 backdrop-blur-sm rounded p-1 mb-1 w-full text-[9px] leading-tight text-white truncate" title={`${event.author ? event.author + ': ' : ''}${event.note}`}>
+                       {event.author && <span className="font-bold block">{event.author.split(' ')[0]}</span>}
+                       {event.note.substring(0, 25)}{event.note.length > 25 ? '...' : ''}
+                    </div>
+                 )}
+                 {event.type !== 'NONE' && <span className="text-[9px] uppercase font-bold tracking-wider opacity-90 self-end mr-1 mb-1">{style.label}</span>}
+              </div>
+            </div>
+          );
+        }
+        return days;
+      };
+
+      const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 pb-32">
+          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+            <div className="flex items-center gap-4">
+              <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button>
+              <div>
+                <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Calendar className="text-teal-400" /> Calendário 2026</h2>
+                <p className="text-slate-400 text-sm">Pagamentos, Feriados e Folgas.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 bg-slate-800 p-2 rounded-xl border border-slate-700">
+               <button onClick={prevMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronLeft size={20}/></button>
+               <h3 className="text-xl font-bold w-40 text-center">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+               <button onClick={nextMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronRight size={20}/></button>
+            </div>
+          </div>
+
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden mb-6">
+            <div className="grid grid-cols-7 bg-slate-900 border-b border-slate-700 text-center py-3 text-sm font-bold text-slate-400 uppercase">
+              <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+            </div>
+            <div className="grid grid-cols-7">
+              {renderCalendar()}
+            </div>
+          </div>
+          
+          <p className="text-center text-slate-500 text-xs mt-6 mb-24">* Clique para selecionar. Duplo clique para adicionar nota/falta.</p>
+
+          {/* BARRA DE AÇÕES */}
+          {selectedDate && (
+             <div className="fixed bottom-0 left-0 w-full bg-slate-900/95 backdrop-blur-md border-t border-slate-700 p-4 animate-in slide-in-from-bottom-10 shadow-2xl z-40">
+                <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                   <div className="text-white font-bold text-sm md:text-base whitespace-nowrap">
+                      {selectedDate.split('-').reverse().join('/')}
+                   </div>
+                   <div className="flex flex-wrap gap-2 justify-center w-full">
+                      <button onClick={() => handleSetType('PAYMENT')} className="flex-1 min-w-[80px] py-3 bg-blue-600 hover:bg-blue-500 rounded text-[10px] md:text-xs font-bold text-white uppercase">Pagamento</button>
+                      <button onClick={() => handleSetType('HOLIDAY')} className="flex-1 min-w-[80px] py-3 bg-orange-500 hover:bg-orange-400 rounded text-[10px] md:text-xs font-bold text-white uppercase">Feriado</button>
+                      <button onClick={() => handleSetType('COMP_OFF')} className="flex-1 min-w-[80px] py-3 bg-purple-500 hover:bg-purple-400 rounded text-[10px] md:text-xs font-bold text-white uppercase">Folga Comp.</button>
+                      <button onClick={() => handleSetType('DAY_OFF')} className="flex-1 min-w-[80px] py-3 bg-red-600 hover:bg-red-500 rounded text-[10px] md:text-xs font-bold text-white uppercase">Folga</button>
+                      <button onClick={() => handleSetType('THIRTEENTH')} className="flex-1 min-w-[80px] py-3 bg-green-600 hover:bg-green-500 rounded text-[10px] md:text-xs font-bold text-white uppercase">13º Sal.</button>
+                      <button onClick={() => handleSetType('NONE')} className="flex-1 min-w-[80px] py-3 bg-slate-700 hover:bg-slate-600 rounded text-[10px] md:text-xs font-bold text-slate-300 uppercase">Limpar</button>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {/* MODAL DE NOTA */}
+          {showNoteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+               <div className="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-bold text-white">Adicionar Observação</h3>
+                      <button onClick={() => setShowNoteModal(false)} className="text-slate-500 hover:text-white"><Icons.X size={20}/></button>
+                  </div>
+                  <p className="text-sm text-slate-400 mb-4">Dia: <span className="text-white font-mono">{noteDate.split('-').reverse().join('/')}</span></p>
+                  
+                  <div className="space-y-4">
+                      <div>
+                          <label className="text-xs text-slate-500 uppercase mb-1 block">Membro da Equipe</label>
+                          <select 
+                            className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                            value={noteAuthor}
+                            onChange={(e) => setNoteAuthor(e.target.value)}
+                          >
+                            <option value="">Selecione...</option>
+                            {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                          </select>
+                      </div>
+
+                      <div>
+                          <label className="text-xs text-slate-500 uppercase mb-1 block flex justify-between">
+                             <span>Motivo / Lembrete</span>
+                             <span className={noteText.length > 25 ? 'text-red-500' : ''}>{noteText.length}/25</span>
+                          </label>
+                          <input 
+                            className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                            placeholder="Ex: Falta médica, Troca..."
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value.slice(0, 25))} 
+                            autoFocus
+                          />
+                          <p className="text-[10px] text-slate-500 mt-1">Máximo de 25 caracteres para caber no calendário.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => setShowNoteModal(false)} className="flex-1 py-3 rounded-lg text-slate-400 hover:bg-slate-700 transition-colors">Cancelar</button>
+                    <button onClick={saveNote} className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors shadow-lg shadow-blue-900/20">Salvar Nota</button>
+                  </div>
+               </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
     function ReagentManager({ onBack }) {
       const [reagents, setReagents] = useSyncedState('reagents', INITIAL_REAGENTS); 
       const [history, setHistory] = useSyncedState('reagents_history', []); 
@@ -702,10 +942,6 @@
       // NOVO: Estado para editar reagente
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
-      // NOVO: Estado para Upload PDF
-      const [showUploadPreview, setShowUploadPreview] = useState(false);
-      const [extractedData, setExtractedData] = useState(null);
-      const fileInputRef = useRef(null);
 
       // Listas de Sugestões para Autocomplete
       const suggestions = useMemo(() => {
@@ -794,11 +1030,7 @@
           usage: newReagent.type === 'standard' ? newReagent.standardType : (newReagent.usage || ''), // Lógica condicional para tipo
           concentration: newReagent.concentration || '',
           unit: newReagent.unit || '',
-          openingDate: newReagent.openingDate || '',
-          sc: newReagent.sc || '',
-          arrivalDate: newReagent.arrivalDate || '',
-          recovery: newReagent.recovery || '',
-          reference: newReagent.reference || ''
+          openingDate: newReagent.openingDate || ''
         };
         setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent', usage: '' });
       };
@@ -877,12 +1109,7 @@
                     <div>
                       <h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3>
                       <p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p>
-                      {item.type === 'standard' && (
-                         <div className="text-xs text-blue-300 mt-1 font-mono flex flex-col gap-1">
-                             <p>{item.concentration} {item.unit}</p>
-                             {(item.reference || item.sc) && <p className="text-[10px] text-slate-500">Ref: {item.reference} | SC: {item.sc}</p>}
-                         </div>
-                      )}
+                      {item.type === 'standard' && item.concentration && <p className="text-xs text-blue-300 mt-1 font-mono">{item.concentration} {item.unit}</p>}
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEditModal(item)} className="text-slate-400 hover:text-blue-400 bg-slate-900/50 p-2 rounded-lg" title="Editar"><Icons.Pencil size={18} /></button>
@@ -925,23 +1152,9 @@
           <input required list="nameSuggestions" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome (Ex: Fósforo)" />
           
           {newReagent.type === 'standard' && (
-            <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <div className="grid grid-cols-2 gap-4">
-                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.concentration || ''} onChange={e => setNewReagent({...newReagent, concentration: e.target.value})} placeholder="Concentração" />
-                    <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || ''} onChange={e => setNewReagent({...newReagent, unit: e.target.value})} placeholder="Unidade" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.sc || ''} onChange={e => setNewReagent({...newReagent, sc: e.target.value})} placeholder="Cód. SC" />
-                    <input type="date" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-xs" value={newReagent.arrivalDate || ''} onChange={e => setNewReagent({...newReagent, arrivalDate: e.target.value})} title="Data de Chegada" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.recovery || ''} onChange={e => setNewReagent({...newReagent, recovery: e.target.value})} placeholder="REC %" />
-                    <select className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.reference || ''} onChange={e => setNewReagent({...newReagent, reference: e.target.value})}>
-                        <option value="" disabled>Referência...</option>
-                        <option value="NIST">NIST</option>
-                        <option value="ISOGUIA">ISOGUIA</option>
-                    </select>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+                <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.concentration || ''} onChange={e => setNewReagent({...newReagent, concentration: e.target.value})} placeholder="Concentração (ex: 1000)" />
+                <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || ''} onChange={e => setNewReagent({...newReagent, unit: e.target.value})} placeholder="Unidade (ex: mg/L)" />
             </div>
           )}
 
@@ -984,23 +1197,9 @@
                   <input required list="nameSuggestions" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} placeholder="Nome" />
                   
                   {editingReagent.type === 'standard' && (
-                    <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                        <div className="grid grid-cols-2 gap-4">
-                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.concentration || ''} onChange={e => setEditingReagent({...editingReagent, concentration: e.target.value})} placeholder="Conc." />
-                            <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit || ''} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})} placeholder="Unid." />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.sc || ''} onChange={e => setEditingReagent({...editingReagent, sc: e.target.value})} placeholder="Cód. SC" />
-                            <input type="date" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-xs" value={editingReagent.arrivalDate || ''} onChange={e => setEditingReagent({...editingReagent, arrivalDate: e.target.value})} title="Chegou" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.recovery || ''} onChange={e => setEditingReagent({...editingReagent, recovery: e.target.value})} placeholder="REC %" />
-                            <select className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.reference || ''} onChange={e => setEditingReagent({...editingReagent, reference: e.target.value})}>
-                                <option value="" disabled>Ref...</option>
-                                <option value="NIST">NIST</option>
-                                <option value="ISOGUIA">ISOGUIA</option>
-                            </select>
-                        </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.concentration || ''} onChange={e => setEditingReagent({...editingReagent, concentration: e.target.value})} placeholder="Conc." />
+                        <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit || ''} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})} placeholder="Unid." />
                     </div>
                   )}
 
@@ -1047,6 +1246,51 @@
 
           {/* MODAL DAR BAIXA */}
           {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
+        </div>
+      );
+    }
+
+    function ArmyControlledManager({ onBack }) {
+      const [armyReagents, setArmyReagents] = useSyncedState('army', INITIAL_ARMY_REAGENTS); // Hook Sync
+      const [selectedMonth, setSelectedMonth] = useState('Novembro');
+      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [newReagent, setNewReagent] = useState({});
+      const [showEditModal, setShowEditModal] = useState(false);
+      const [editingReagent, setEditingReagent] = useState(null);
+      const LAB_UNITS = ['mL', 'L', 'µL', 'g', 'kg', 'mg', 'und', 'fr', 'cx', 'gal'];
+      const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+      const handleQuantityChange = (id, newQty) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, quantity: newQty } : r));
+      const handleUnitChange = (id, newUnit) => setArmyReagents(prev => prev.map(r => r.id === id ? { ...r, unit: newUnit } : r));
+      const handleAddReagent = (e) => { e.preventDefault(); if (!newReagent.name) return; const item = { id: 'army_' + Date.now(), name: newReagent.name, quantity: Number(newReagent.quantity) || 0, unit: newReagent.unit || 'mL' }; setArmyReagents([...armyReagents, item]); setShowAddModal(false); setNewReagent({}); };
+      const handleUpdateReagent = (e) => { e.preventDefault(); if (!editingReagent.name) return; setArmyReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r)); setShowEditModal(false); setEditingReagent(null); };
+      const removeReagent = (id) => { if(confirm('Remover este item?')) setArmyReagents(prev => prev.filter(r => r.id !== id)); };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
+          <div className="no-print">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4"><div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ShieldAlert className="text-red-500" /> Controle Exército</h2><p className="text-slate-400 text-sm">Sincronizado</p></div></div><div className="flex flex-wrap items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 cursor-pointer">
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500" placeholder="Ano" />
+                
+                <div className="w-px h-6 bg-slate-600 mx-2"></div>
+                <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
+                <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>
+              </div></div>
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-300"><thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Reagente</th><th className="px-6 py-4 text-center">Quantidade</th><th className="px-6 py-4 text-center">Unidade</th><th className="px-6 py-4 text-right w-24">Ações</th></tr></thead><tbody className="divide-y divide-slate-700">{armyReagents.map((item) => (<tr key={item.id} className="group hover:bg-slate-700/30 transition-colors"><td className="px-6 py-4 font-medium text-white">{item.name}</td><td className="px-6 py-4 text-center"><input type="number" min="0" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))} className="w-24 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" /></td><td className="px-6 py-4 text-center"><select value={item.unit} onChange={(e) => handleUnitChange(item.id, e.target.value)} className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white appearance-none cursor-pointer hover:bg-slate-800">{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => { setEditingReagent({...item}); setShowEditModal(true); }} className="p-2 text-slate-600 hover:text-blue-400"><Icons.Pencil size={16} /></button><button onClick={() => removeReagent(item.id)} className="p-2 text-slate-600 hover:text-red-400"><Icons.Trash2 size={16} /></button></div></td></tr>))}</tbody></table></div></div>
+          </div>
+          <div className="print-only print-container">
+            <h1 className="text-xl font-bold uppercase text-center mb-2">Movimentação de Reagentes Controlados Pelo Exército</h1>
+            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black"><span className="font-bold">Mês de Referência:</span> {selectedMonth} / {selectedYear}</div>
+            <table className="print-table"><thead><tr><th style={{ width: '60%' }}>REAGENTES</th><th style={{ width: '25%' }}>Qtd em uso no Laboratório</th><th style={{ width: '15%' }}>UNIDADE</th></tr></thead><tbody>{armyReagents.map(item => (<tr key={item.id}><td>{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-center">{item.unit}</td></tr>))}</tbody></table>
+            <div className="signature-block"><div className="signature-line">Assinatura do Responsável Técnico</div><div className="signature-line">Data</div></div>
+          </div>
+
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white flex items-center gap-2">Adicionar Controlado</h3><form onSubmit={handleAddReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome" /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.quantity || ''} onChange={e => setNewReagent({...newReagent, quantity: e.target.value})} placeholder="Qtd" /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || 'mL'} onChange={e => setNewReagent({...newReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold">Adicionar</button></div></form></div></div>}
+          {showEditModal && editingReagent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white">Editar</h3><form onSubmit={handleUpdateReagent} className="p-6 space-y-4"><input required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="number" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.quantity} onChange={e => setEditingReagent({...editingReagent, quantity: Number(e.target.value)})} /><select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})}>{LAB_UNITS.map(u => <option key={u} value={u}>{u}</option>)}</select></div><div className="flex gap-3 pt-4"><button type="button" onClick={() => {setShowEditModal(false); setEditingReagent(null);}} className="flex-1 py-3 text-slate-400">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></form></div></div>}
         </div>
       );
     }

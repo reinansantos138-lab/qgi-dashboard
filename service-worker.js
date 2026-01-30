@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v28-pdf-sorting-standards';
+const CACHE_NAME = 'qgi-lab-v31-calendar-fix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
