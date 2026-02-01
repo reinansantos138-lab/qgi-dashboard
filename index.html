@@ -66,20 +66,8 @@
       .print-only { display: block !important; }
       body { background-color: white !important; color: black !important; font-size: 11pt; width: 100%; }
       .print-container { width: 100%; }
-      table.print-table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin-bottom: 20px; 
-        font-size: 9pt; 
-        table-layout: fixed;
-      }
-      table.print-table th, table.print-table td { 
-        border: 1px solid #000; 
-        padding: 4px; 
-        text-align: center; 
-        vertical-align: top;
-        word-wrap: break-word;
-      }
+      table.print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; table-layout: fixed; }
+      table.print-table th, table.print-table td { border: 1px solid #000; padding: 4px; text-align: center; vertical-align: top; word-wrap: break-word; }
       table.print-table th { background-color: #e0e0e0 !important; font-weight: bold; }
       .page-break { page-break-before: always; break-before: page; display: block; height: 1px; }
       .signature-block { margin-top: 40px; display: flex; justify-content: space-around; }
@@ -204,27 +192,86 @@
       MessageSquare: (p) => <Icon {...p} path={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>} />,
       ArrowRightLeft: (p) => <Icon {...p} path={<><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></>} />,
       Calculator: (p) => <Icon {...p} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
-      Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></>} />,
       ExternalLink: (p) => <Icon {...p} path={<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></>} />,
       ChevronLeft: (p) => <Icon {...p} path={<><polyline points="15 18 9 12 15 6" /></>} />,
       ChevronRight: (p) => <Icon {...p} path={<><polyline points="9 18 15 12 9 6" /></>} />,
       X: (p) => <Icon {...p} path={<><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></>} />,
     };
 
-    // --- DADOS INICIAIS ---
+    // --- DADOS COMPLETOS (PDF) ---
     const INITIAL_REAGENTS = [
       { id: '1', type: 'reagent', name: 'Ácido Clorídrico', brand: 'Sigma', lot: 'A102', expiryDate: '2023-12-01', usage: 'Titulação' },
       { id: '2', type: 'reagent', name: 'Bicarbonato de Sódio', brand: 'Merck', lot: 'B550', expiryDate: '2026-05-20', usage: 'Soluções' },
-      { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123', usage: 'Verificação' }
+      { id: 'p1', type: 'standard', name: 'Fósforo - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2024-08-13', expiryDate: '2026-01-31', brand: 'ABSOLUTE STANDARDS', lot: '013123', usage: 'Verificação' },
+      { id: 'p2', type: 'standard', name: 'Alcalinidade Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25COO12E', usage: 'Verificação' },
+      { id: 'p3', type: 'standard', name: 'Amonia', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4488/23', usage: 'Verificação' },
+      { id: 'p4', type: 'standard', name: 'Bromato - Verificação', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-11-30', brand: 'NSI LAB SOLUTIONS', lot: '211108', usage: 'Verificação' },
+      { id: 'p5', type: 'standard', name: 'Cianeto Curva', concentration: '997', unit: 'mg/L', openingDate: '', expiryDate: '2027-08-18', brand: 'CPA CHEM', lot: '1023406', usage: 'Curva' },
+      { id: 'p6', type: 'standard', name: 'Cloreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-09-30', brand: 'QMC', lot: '4518/23', usage: 'Verificação' },
+      { id: 'p7', type: 'standard', name: 'Condutividade 1413 µS/cm', concentration: '1413', unit: 'µS/cm', openingDate: '', expiryDate: '2025-10-12', brand: 'Inorganic Ventures', lot: 'T2-COND 724227', usage: 'Calibração' },
+      { id: 'p8', type: 'standard', name: 'DQO', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2027-03-17', brand: 'CPA CHEM', lot: '1083145', usage: 'Verificação' },
+      { id: 'p9', type: 'standard', name: 'Fenol', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25D0302E', usage: 'Verificação' },
+      { id: 'p10', type: 'standard', name: 'Fluoreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-11-13', brand: 'Dinâmica', lot: '152671', usage: 'Verificação' },
+      { id: 'p11', type: 'standard', name: 'Nitrato Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25B0492E', usage: 'Verificação' },
+      { id: 'p12', type: 'standard', name: 'pH 4,00 (Tampão)', concentration: '4,00', unit: 'pH', openingDate: '', expiryDate: '2025-12-31', brand: 'Visomes', lot: 'L0742', usage: 'Calibração' },
+      { id: 'p13', type: 'standard', name: 'pH 7,00 (Tampão)', concentration: '7,00', unit: 'pH', openingDate: '', expiryDate: '2025-09-07', brand: 'CPA CHEM', lot: '926518', usage: 'Calibração' },
+      { id: 'p14', type: 'standard', name: 'pH 10,00 (Tampão)', concentration: '10,00', unit: 'pH', openingDate: '', expiryDate: '2026-12-31', brand: 'Merck', lot: 'HC 33255138', usage: 'Calibração' },
+      { id: 'p15', type: 'standard', name: 'Turbidez', concentration: '4000', unit: 'NTU', openingDate: '', expiryDate: '2025-03-31', brand: 'Visomes', lot: 'L0750', usage: 'Calibração' },
+      { id: 'p16', type: 'standard', name: 'Brometo', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-03-30', brand: 'Absolute Standards', lot: '033023', usage: 'Verificação' },
+      { id: 'p17', type: 'standard', name: 'Brometo curva', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-08-31', brand: 'NSI LAB SOLUTIONS', lot: '220815', usage: 'Curva' },
+      { id: 'p18', type: 'standard', name: 'Brometo 1000 µg/mL', concentration: '1000', unit: 'µg/mL', openingDate: '', expiryDate: '2025-08-31', brand: 'SCP SCIENCE', lot: 'S231026010', usage: 'Verificação' },
+      { id: 'p19', type: 'standard', name: 'Cianeto verificação', concentration: '1004.6', unit: 'mg/L', openingDate: '', expiryDate: '2026-11-11', brand: 'CPA CHEM', lot: '937505', usage: 'Verificação' },
+      { id: 'p20', type: 'standard', name: 'CLORATO', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-08-14', brand: 'Absolut Standards', lot: '081423', usage: 'Verificação' },
+      { id: 'p21', type: 'standard', name: 'CLORITO-CURVA', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-09-14', brand: 'CPA CHEM', lot: '928707', usage: 'Curva' },
+      { id: 'p22', type: 'standard', name: 'Cloro -Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2025-11-30', brand: 'Specsol', lot: 'F25C0597E', usage: 'Verificação' },
+      { id: 'p23', type: 'standard', name: 'CLORO RESIDUAL LIVRE', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-08-17', brand: 'Absolute Standards', lot: '081723', usage: 'Verificação' },
+      { id: 'p24', type: 'standard', name: 'Cromo Hexavalente', concentration: '996', unit: 'mg/L', openingDate: '', expiryDate: '2027-05-15', brand: 'CPA CHEM', lot: '991231', usage: 'Verificação' },
+      { id: 'p25', type: 'standard', name: 'Dureza', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2027-03-04', brand: 'CPA CHEM', lot: '1083146', usage: 'Verificação' },
+      { id: 'p26', type: 'standard', name: 'Fluoreto', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2025-11-30', brand: 'QMC', lot: '5723/73', usage: 'Verificação' },
+      { id: 'p27', type: 'standard', name: 'FOSFATO (verificação)', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-11-22', brand: 'Dinâmica', lot: '152865', usage: 'Verificação' },
+      { id: 'p28', type: 'standard', name: 'Glifosato Curva', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-03-09', brand: 'Absolute Standards', lot: '030921', usage: 'Curva' },
+      { id: 'p29', type: 'standard', name: 'Nitrato', concentration: '4424.78', unit: 'mg/L', openingDate: '', expiryDate: '2026-02-28', brand: 'QMC', lot: '178/24', usage: 'Verificação' },
+      { id: 'p30', type: 'standard', name: 'ÓLEO E GRAXAS CURVA', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2027-10-19', brand: 'Absolute Standards', lot: '101922', usage: 'Curva' },
+      { id: 'p31', type: 'standard', name: 'Padrão de Cor 500', concentration: '500', unit: 'mg/L', openingDate: '2023-03-17', expiryDate: '2025-12-15', brand: 'Absolute Standards', lot: '121522', usage: 'Calibração' },
+      { id: 'p32', type: 'standard', name: 'Sólidos Totais Dissolvidos', concentration: '1001', unit: 'mg/L', openingDate: '', expiryDate: '2026-08-17', brand: 'CPA CHEM', lot: '1023405', usage: 'Calibração' },
+      { id: 'p33', type: 'standard', name: 'Sólidos totais voláteis', concentration: '50', unit: 'mg/L', openingDate: '', expiryDate: '2031-08-19', brand: 'Absolute Standards', lot: '081921', usage: 'Verificação' },
+      { id: 'p34', type: 'standard', name: 'SULFATO', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-04-30', brand: 'QMC', lot: '2195/24', usage: 'Verificação' },
+      { id: 'p35', type: 'standard', name: 'SULFATO-Verificação', concentration: '1000', unit: 'mg/L', openingDate: '2025-06-16', expiryDate: '2026-05-31', brand: 'Specsol', lot: 'F25D0847E', usage: 'Verificação' },
+      { id: 'p36', type: 'standard', name: 'SULFATO-curva', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-01-31', brand: 'NSI LAB SOLUTIONS', lot: '220128', usage: 'Curva' },
+      { id: 'p37', type: 'standard', name: 'Surfactantes Curva', concentration: '1000', unit: 'mg/L', openingDate: '', expiryDate: '2026-08-15', brand: 'CPA CHEM', lot: '1023407', usage: 'Curva' },
+      { id: 'p38', type: 'standard', name: 'Tampão 10 Calibração', concentration: '10.00', unit: 'pH', openingDate: '', expiryDate: '2026-08-17', brand: 'CPA CHEM', lot: '1023424', usage: 'Calibração' },
+      { id: 'p39', type: 'standard', name: 'Tampão 10 Verificação', concentration: '10.00', unit: 'pH', openingDate: '', expiryDate: '2026-08-17', brand: 'CPA CHEM', lot: '1023401', usage: 'Verificação' },
+      { id: 'p40', type: 'standard', name: 'Tampão 10,00 Verificação', concentration: '10.00', unit: 'pH', openingDate: '', expiryDate: '2027-07-12', brand: 'Dinâmica', lot: '148399', usage: 'Verificação' },
+      { id: 'p41', type: 'standard', name: 'Tampão 4,00', concentration: '4.00', unit: 'pH', openingDate: '', expiryDate: '2028-08-28', brand: 'Dinâmica', lot: '149853', usage: 'Calibração' },
+      { id: 'p42', type: 'standard', name: 'Tampão 7,00', concentration: '7.00', unit: 'pH', openingDate: '', expiryDate: '2027-07-04', brand: 'Dinâmica', lot: '148123', usage: 'Calibração' }
     ];
 
     const INITIAL_STAFF = [
-      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }], qualityTasks: [] }
+      { id: 's1', name: 'Reinan Souza', role: 'Tecnico', tasks: [{ id: 't1', text: 'Cor real e Aparente' }, { id: 't2', text: 'Cloro Residual' }], qualityTasks: [] },
+      { id: 's2', name: 'Glaucia Haack', role: 'Tecnico', tasks: [{ id: 't3', text: 'Cianotoxinas' }], qualityTasks: [] },
+      { id: 's3', name: 'Adriana Goes', role: 'Tecnico', tasks: [], qualityTasks: [] },
+      { id: 's4', name: 'Franciesco Pinto', role: 'Tecnico', tasks: [{ id: 't4', text: 'Dureza total' }], qualityTasks: [] },
+      { id: 's5', name: 'Sandra Helena', role: 'Tecnico', tasks: [{ id: 't5', text: 'Óleos e Graxas' }], qualityTasks: [] },
+      { id: 's6', name: 'Antônio Fidelis', role: 'Estagiario', tasks: [{ id: 't6', text: 'Fósforo' }], qualityTasks: [] },
+      { id: 's7', name: 'Victor Luiz', role: 'Estagiario', tasks: [{ id: 't7', text: 'DBO e DQO' }], qualityTasks: [] },
     ];
 
     const INITIAL_ARMY_REAGENTS = [
-      { id: 'a1', name: 'Ácido Fluorídrico', quantity: 0, unit: 'mL' },
-      { id: 'a2', name: 'Ácido Nítrico', quantity: 0, unit: 'mL' }
+      { id: 'a1', name: 'Ácido Fluorídrico (Fluoreto de hidrogênio)', quantity: 0, unit: 'mL' },
+      { id: 'a2', name: 'Ácido Nítrico em Solução c/ conc. ≥ 55%', quantity: 0, unit: 'mL' },
+      { id: 'a3', name: 'Ácido Perclórico', quantity: 0, unit: 'mL' },
+      { id: 'a4', name: 'Álcool 2-Cloetilico (2-Cloroetano)', quantity: 0, unit: 'und' },
+      { id: 'a5', name: 'Azida de Sódio', quantity: 100, unit: 'g' },
+      { id: 'a6', name: 'Cianeto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a7', name: 'Fluoreto de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a8', name: 'Fluoreto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a9', name: 'Hidrazina - adquirido em ampolas', quantity: 0, unit: 'und' },
+      { id: 'a10', name: 'Nitrato de amônio (Líquido)', quantity: 0, unit: 'mL' },
+      { id: 'a11', name: 'Nitrato de amônio (Sólido)', quantity: 0, unit: 'g' },
+      { id: 'a12', name: 'Nitrato de Mercúrio', quantity: 0, unit: 'g' },
+      { id: 'a13', name: 'Nitrato de Potássio', quantity: 0, unit: 'g' },
+      { id: 'a14', name: 'Sulfeto de Sódio', quantity: 0, unit: 'g' },
+      { id: 'a15', name: 'Trietanolamina', quantity: 0, unit: 'mL' },
     ];
 
     function QGIDashboard() {
@@ -313,11 +360,11 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V25</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V33</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-            <DashboardCard title="Reagentes & Padrões" description="Controle de validade." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null]} />
+            <DashboardCard title="Reagentes & Padrões" description="Controle de validade." icon={<Icons.Beaker size={40} />} color="bg-emerald-500" onClick={() => onNavigate('reagents')} badges={[notifications.expired > 0 ? { text: `${notifications.expired} Vencidos`, color: 'bg-red-500 text-white shadow-red-500/50' } : null, notifications.expiring > 0 ? { text: `${notifications.expiring} Vencendo`, color: 'bg-yellow-500 text-black shadow-yellow-500/50' } : null]} />
             <DashboardCard title="Distribuição & Equipe" description="Gestão de ensaios." icon={<Icons.ClipboardList size={40} />} color="bg-indigo-500" onClick={() => onNavigate('tasks')} />
             <DashboardCard title="Controlados (Exército)" description="Relatório mensal." icon={<Icons.ShieldAlert size={40} />} color="bg-red-600" onClick={() => onNavigate('army')} badges={[notifications.armyReport ? { text: 'RELATÓRIO PENDENTE', color: 'bg-red-600 text-white animate-pulse shadow-red-600/50' } : null]} />
             <DashboardCard title="Mural de Avisos" description="Comunicados internos." icon={<Icons.Megaphone size={40} />} color="bg-amber-500" onClick={() => onNavigate('notices')} />
@@ -507,13 +554,10 @@
       const [filterRole, setFilterRole] = useState('Todos');
       const [newStaffName, setNewStaffName] = useState('');
       const [newStaffRole, setNewStaffRole] = useState('Tecnico');
-
-      // NOVOS ESTADOS PARA TRANSFERÊNCIA
       const [showTransferModal, setShowTransferModal] = useState(false);
       const [transferData, setTransferData] = useState(null); 
       const [targetStaffId, setTargetStaffId] = useState('');
 
-      // ORDENAÇÃO: Técnicos primeiro, depois alfabética
       const sortedStaff = useMemo(() => {
           return [...staff].sort((a, b) => {
               if (a.role === b.role) return a.name.localeCompare(b.name);
@@ -528,7 +572,6 @@
       const addStaffMember = (e) => { e.preventDefault(); if (!newStaffName.trim()) return; const newMember = { id: 's_' + Date.now(), name: newStaffName, role: newStaffRole, tasks: [], qualityTasks: [] }; setStaff([...staff, newMember]); setNewStaffName(''); };
       const removeStaffMember = (id) => { if (confirm('Remover este membro e suas tarefas?')) setStaff(staff.filter(s => s.id !== id)); };
 
-      // --- LÓGICA DE TRANSFERÊNCIA ATUALIZADA (SWAP) ---
       const initiateTransfer = (type, fromId, taskId = null, taskType = null) => {
         setTransferData({ type, fromId, taskId, taskType });
         setShowTransferModal(true);
@@ -538,27 +581,21 @@
       const executeTransfer = () => {
         if (!targetStaffId || !transferData) return;
         const { type, fromId, taskId, taskType } = transferData;
-
         if (type === 'all') {
-          // SWAP TOTAL: A -> B e B -> A
           const sourceMember = staff.find(s => s.id === fromId);
           const targetMember = staff.find(s => s.id === targetStaffId);
           if (!sourceMember || !targetMember) return;
-
           setStaff(prev => prev.map(s => {
             if (s.id === fromId) return { ...s, tasks: targetMember.tasks, qualityTasks: targetMember.qualityTasks };
             if (s.id === targetStaffId) return { ...s, tasks: sourceMember.tasks, qualityTasks: sourceMember.qualityTasks };
             return s;
           }));
         } else if (type === 'single') {
-          // Transferência simples de UMA tarefa
           const sourceMember = staff.find(s => s.id === fromId);
           let taskToMove;
           if (taskType === 'quality') taskToMove = sourceMember.qualityTasks.find(t => t.id === taskId);
           else taskToMove = sourceMember.tasks.find(t => t.id === taskId);
-
           if (!taskToMove) return;
-
           setStaff(prev => prev.map(s => {
             if (s.id === targetStaffId) {
               if (taskType === 'quality') return { ...s, qualityTasks: [...s.qualityTasks, taskToMove] };
@@ -591,20 +628,7 @@
 
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
-          
-          <div className="print-only print-container">
-            <div className="mb-4 text-center"><h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório</h1></div>
-            {/* PÁGINA 1: ENSAIOS */}
-            <PrintTable title="Ensaios Analíticos" type="normal" />
-            
-            {/* QUEBRA DE PÁGINA */}
-            <div className="page-break"></div>
-            
-            {/* PÁGINA 2: QUALIDADE */}
-            <PrintTable title="Gestão da Qualidade" type="quality" />
-            <div className="signature-block"><div className="signature-line">Responsável</div></div>
-          </div>
-
+          <div className="print-only print-container"><div className="mb-4 text-center"><h1 className="text-2xl font-bold uppercase">Painel QGI - Relatório</h1></div><PrintTable title="Ensaios Analíticos" type="normal" /><div className="page-break"></div><PrintTable title="Gestão da Qualidade" type="quality" /><div className="signature-block"><div className="signature-line">Responsável</div></div></div>
           <div className="no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6">
               <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.ClipboardList className="text-indigo-400" /> Distribuição & Equipe</h2><p className="text-slate-400 text-sm">Sincronizado via Nuvem</p></div></div>
@@ -619,72 +643,39 @@
             {activeTab === 'equipe' ? (
               <div className="max-w-4xl mx-auto"><div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-8"><form onSubmit={addStaffMember} className="flex flex-col md:flex-row gap-4"><input type="text" placeholder="Nome completo..." value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white"><option value="Tecnico">Técnico</option><option value="Estagiario">Estagiário</option></select><button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg">Adicionar</button></form></div><div className="space-y-3">{staff.map(member => <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"><div className="flex items-center gap-4"><div className={`p-3 rounded-full ${member.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{member.role === 'Tecnico' ? <Icons.User size={20} /> : <Icons.GraduationCap size={20} />}</div><div><h4 className="font-bold text-white text-lg">{member.name}</h4><span className="text-sm text-slate-400">{member.role === 'Tecnico' ? 'Técnico(a)' : 'Estagiário(a)'}</span></div></div><button onClick={() => removeStaffMember(member.id)} className="p-2 text-slate-500 hover:text-red-400"><Icons.Trash2 size={20} /></button></div>)}</div></div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { 
-                const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; 
-                const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; 
-                const roleColor = person.role === 'Tecnico' ? 'border-l-4 border-l-indigo-500' : 'border-l-4 border-l-purple-500';
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStaff.map((person) => { const currentTasks = activeTab === 'qualidade' ? person.qualityTasks : person.tasks; const taskType = activeTab === 'qualidade' ? 'quality' : 'normal'; 
+              // Destaque visual: Borda colorida para técnicos vs estagiários
+              const roleColor = person.role === 'Tecnico' ? 'border-l-4 border-l-indigo-500' : 'border-l-4 border-l-purple-500';
 
-                return (
-                  <div key={person.id} className={`flex flex-col bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg ${roleColor}`}>
-                    <div className="p-4 bg-slate-900/50 border-b border-slate-700 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${person.role === 'Tecnico' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-purple-500/20 text-purple-400'}`}>{person.name.charAt(0)}</div>
-                         <div><h3 className="font-bold text-white text-sm">{person.name}</h3><span className="text-[10px] text-slate-400 uppercase tracking-widest">{person.role}</span></div>
-                      </div>
-                      {!isLocked && <button onClick={() => initiateTransfer('all', person.id)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-700 hover:text-blue-400 transition-colors" title="Trocar Todas as Tarefas"><Icons.ArrowRightLeft size={16} /></button>}
-                    </div>
-
-                    <div className="flex-1 p-3 bg-slate-800/50 min-h-[200px] space-y-2">
-                      {currentTasks.length === 0 ? <div className="h-full flex flex-col items-center justify-center text-slate-600"><span className="text-xs italic">Sem tarefas</span></div> : 
-                        currentTasks.map((task) => (
-                          <div key={task.id} className="group relative flex items-center justify-between p-3 rounded-lg bg-slate-700/40 border border-slate-600/30 hover:border-slate-500 hover:bg-slate-700/60 transition-all">
-                              <span className="text-sm text-slate-200 font-medium leading-tight pr-8">{task.text}</span>
-                              {!isLocked && (
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800/90 p-1 rounded-md shadow-lg backdrop-blur-sm">
-                                  <button onClick={() => initiateTransfer('single', person.id, task.id, taskType)} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded"><Icons.ArrowRightLeft size={14} /></button>
-                                  <button onClick={() => removeTask(person.id, task.id, taskType)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded"><Icons.Trash2 size={14} /></button>
-                                </div>
-                              )}
-                          </div>
-                        ))
-                      }
-                    </div>
-
-                    {!isLocked && <div className="p-3 bg-slate-900/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2 animate-in slide-in-from-bottom-2 fade-in duration-200"><input autoFocus type="text" className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Nova tarefa..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-500"><Icons.Plus size={18} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg border border-dashed border-slate-700 hover:border-blue-500/50 transition-all uppercase tracking-wider"><Icons.Plus size={12} /> Adicionar</button>}</div>}
+              return <div key={person.id} className={`flex flex-col bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg ${roleColor}`}><div className="p-4 bg-slate-900/50 border-b border-slate-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white">{person.name}</h3>
+                    {!isLocked && <button onClick={() => initiateTransfer('all', person.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Trocar Todas as Tarefas"><Icons.ArrowRightLeft size={16} /></button>}
                   </div>
-                );
-              })}</div>
+                </div><div className="flex-1 p-4 bg-slate-800/20 min-h-[200px]"><ul className="space-y-2">{currentTasks.map((task) => <li key={task.id} className="group flex items-start justify-between gap-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/30"><span className="text-sm text-slate-200">{task.text}</span>{!isLocked && <div className="flex gap-1"><button onClick={() => initiateTransfer('single', person.id, task.id, taskType)} className="text-slate-500 hover:text-blue-400"><Icons.ArrowRightLeft size={14} /></button><button onClick={() => removeTask(person.id, task.id, taskType)} className="text-slate-500 hover:text-red-400"><Icons.Trash2 size={14} /></button></div>}</li>)}</ul></div>{!isLocked && <div className="p-3 bg-slate-800/80 border-t border-slate-700">{selectedStaffId === person.id ? <div className="flex gap-2"><input autoFocus type="text" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask(person.id, taskType)} /><button onClick={() => addTask(person.id, taskType)} className="bg-emerald-600 text-white p-1.5 rounded"><Icons.Plus size={16} /></button></div> : <button onClick={() => setSelectedStaffId(person.id)} className="w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-400 hover:bg-slate-700/50 rounded border border-dashed border-slate-600"><Icons.Plus size={14} /> Adicionar</button>}</div>}</div>; })}</div>
             )}
           </div>
           
-          {/* MODAL TRANSFERÊNCIA (SWAP) */}
           {showTransferModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
-              <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in duration-200">
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Icons.ArrowRightLeft size={24} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">
-                    {transferData.type === 'all' ? 'Trocar Todas as Tarefas' : 'Transferir Tarefa'}
-                  </h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    {transferData.type === 'all' ? 'Selecione o parceiro para realizar a troca completa de ensaios.' : 'Selecione quem irá receber esta tarefa.'}
-                  </p>
-                </div>
+              <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Icons.ArrowRightLeft className="text-blue-400" /> {transferData.type === 'all' ? 'Trocar Todas as Tarefas' : 'Transferir Tarefa'}
+                </h3>
+                <p className="text-sm text-slate-400 mb-4">{transferData.type === 'all' ? 'Selecione com quem deseja trocar (Swap):' : 'Selecione para quem transferir:'}</p>
                 <select 
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-6 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer hover:bg-slate-950 transition-colors"
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-6 focus:outline-none focus:border-blue-500"
                   value={targetStaffId}
                   onChange={(e) => setTargetStaffId(e.target.value)}
                 >
-                  <option value="">Selecione um técnico...</option>
-                  {sortedStaff.filter(s => s.id !== transferData.fromId).map(s => (
+                  <option value="">Selecione...</option>
+                  {staff.filter(s => s.id !== transferData.fromId).map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
                   ))}
                 </select>
                 <div className="flex gap-3">
-                  <button onClick={() => setShowTransferModal(false)} className="flex-1 py-3 rounded-lg text-slate-400 hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                  <button onClick={executeTransfer} className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled={!targetStaffId}>Confirmar</button>
+                  <button onClick={() => setShowTransferModal(false)} className="flex-1 py-2 rounded-lg text-slate-400 hover:bg-slate-700">Cancelar</button>
+                  <button onClick={executeTransfer} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-50" disabled={!targetStaffId}>Confirmar</button>
                 </div>
               </div>
             </div>
@@ -693,7 +684,7 @@
       );
     }
 
-    // --- ADMINISTRATIVE CALENDAR (NOVO) ---
+    // --- ADMINISTRATIVE CALENDAR (ATUALIZADO) ---
     function AdministrativeCalendar({ onBack }) {
       const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
       const [events, setEvents] = useSyncedState('calendar_events', {});
@@ -1021,18 +1012,40 @@
 
       const handleAddReagent = (e) => {
         e.preventDefault(); if (!newReagent.name || !newReagent.expiryDate) return;
-        const item = { 
-          ...newReagent, 
-          id: Date.now().toString(), 
-          type: newReagent.type, 
-          brand: newReagent.brand || 'N/A', 
-          lot: newReagent.lot || 'N/A',
-          usage: newReagent.type === 'standard' ? newReagent.standardType : (newReagent.usage || ''), // Lógica condicional para tipo
-          concentration: newReagent.concentration || '',
-          unit: newReagent.unit || '',
-          openingDate: newReagent.openingDate || ''
-        };
-        setReagents([...reagents, item]); setShowAddModal(false); setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent', usage: '' });
+        
+        // Verifica se é Padrão e se o Tipo foi selecionado
+        if (newReagent.type === 'standard' && !newReagent.standardType) {
+            alert('Por favor, selecione o Tipo de Padrão (Verificação, Calibração ou Curva).');
+            return;
+        }
+
+        try {
+            const item = { 
+              ...newReagent, 
+              id: Date.now().toString(), 
+              type: newReagent.type, 
+              brand: newReagent.brand || 'N/A', 
+              lot: newReagent.lot || 'N/A',
+              usage: newReagent.type === 'standard' ? newReagent.standardType : (newReagent.usage || ''), 
+              concentration: newReagent.concentration || '',
+              unit: newReagent.unit || '',
+              openingDate: newReagent.openingDate || '',
+              sc: newReagent.sc || '',
+              arrivalDate: newReagent.arrivalDate || '',
+              recovery: newReagent.recovery || '',
+              reference: newReagent.reference || ''
+            };
+            
+            // Força a atualização garantindo que é um array
+            const currentList = Array.isArray(reagents) ? reagents : [];
+            setReagents([...currentList, item]); 
+            
+            setShowAddModal(false); 
+            setNewReagent({ type: activeTab === 'standard' ? 'standard' : 'reagent', usage: '' });
+        } catch(error) {
+            console.error("Erro ao salvar:", error);
+            alert("Erro ao salvar. Tente novamente.");
+        }
       };
 
       const executeDelete = (reason) => {
@@ -1109,7 +1122,12 @@
                     <div>
                       <h3 className="text-xl font-bold text-white flex items-center flex-wrap gap-2">{item.name}{getSuggestionBadge(item, filteredList)}</h3>
                       <p className="text-sm text-slate-400">{item.brand} • Lote: {item.lot}</p>
-                      {item.type === 'standard' && item.concentration && <p className="text-xs text-blue-300 mt-1 font-mono">{item.concentration} {item.unit}</p>}
+                      {item.type === 'standard' && (
+                         <div className="text-xs text-blue-300 mt-1 font-mono flex flex-col gap-1">
+                             <p>{item.concentration} {item.unit}</p>
+                             {(item.reference || item.sc) && <p className="text-[10px] text-slate-500">Ref: {item.reference} | SC: {item.sc}</p>}
+                         </div>
+                      )}
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEditModal(item)} className="text-slate-400 hover:text-blue-400 bg-slate-900/50 p-2 rounded-lg" title="Editar"><Icons.Pencil size={18} /></button>
@@ -1152,9 +1170,23 @@
           <input required list="nameSuggestions" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome (Ex: Fósforo)" />
           
           {newReagent.type === 'standard' && (
-            <div className="grid grid-cols-2 gap-4">
-                <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.concentration || ''} onChange={e => setNewReagent({...newReagent, concentration: e.target.value})} placeholder="Concentração (ex: 1000)" />
-                <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || ''} onChange={e => setNewReagent({...newReagent, unit: e.target.value})} placeholder="Unidade (ex: mg/L)" />
+            <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <div className="grid grid-cols-2 gap-4">
+                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.concentration || ''} onChange={e => setNewReagent({...newReagent, concentration: e.target.value})} placeholder="Concentração" />
+                    <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.unit || ''} onChange={e => setNewReagent({...newReagent, unit: e.target.value})} placeholder="Unidade" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.sc || ''} onChange={e => setNewReagent({...newReagent, sc: e.target.value})} placeholder="Cód. SC" />
+                    <input type="date" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-xs" value={newReagent.arrivalDate || ''} onChange={e => setNewReagent({...newReagent, arrivalDate: e.target.value})} title="Data de Chegada" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.recovery || ''} onChange={e => setNewReagent({...newReagent, recovery: e.target.value})} placeholder="REC %" />
+                    <select className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.reference || ''} onChange={e => setNewReagent({...newReagent, reference: e.target.value})}>
+                        <option value="" disabled>Referência...</option>
+                        <option value="NIST">NIST</option>
+                        <option value="ISOGUIA">ISOGUIA</option>
+                    </select>
+                </div>
             </div>
           )}
 
@@ -1197,9 +1229,23 @@
                   <input required list="nameSuggestions" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.name || ''} onChange={e => setEditingReagent({...editingReagent, name: e.target.value})} placeholder="Nome" />
                   
                   {editingReagent.type === 'standard' && (
-                    <div className="grid grid-cols-2 gap-4">
-                        <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.concentration || ''} onChange={e => setEditingReagent({...editingReagent, concentration: e.target.value})} placeholder="Conc." />
-                        <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit || ''} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})} placeholder="Unid." />
+                    <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                        <div className="grid grid-cols-2 gap-4">
+                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.concentration || ''} onChange={e => setEditingReagent({...editingReagent, concentration: e.target.value})} placeholder="Conc." />
+                            <input list="unitSuggestions" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.unit || ''} onChange={e => setEditingReagent({...editingReagent, unit: e.target.value})} placeholder="Unid." />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.sc || ''} onChange={e => setEditingReagent({...editingReagent, sc: e.target.value})} placeholder="Cód. SC" />
+                            <input type="date" className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-xs" value={editingReagent.arrivalDate || ''} onChange={e => setEditingReagent({...editingReagent, arrivalDate: e.target.value})} title="Chegou" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.recovery || ''} onChange={e => setEditingReagent({...editingReagent, recovery: e.target.value})} placeholder="REC %" />
+                            <select className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={editingReagent.reference || ''} onChange={e => setEditingReagent({...editingReagent, reference: e.target.value})}>
+                                <option value="" disabled>Ref...</option>
+                                <option value="NIST">NIST</option>
+                                <option value="ISOGUIA">ISOGUIA</option>
+                            </select>
+                        </div>
                     </div>
                   )}
 

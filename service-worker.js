@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v31-calendar-fix';
+const CACHE_NAME = 'qgi-lab-v33-standards-fields-fix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
