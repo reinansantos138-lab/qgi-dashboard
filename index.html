@@ -64,20 +64,20 @@
       @page { size: landscape; margin: 0.5cm; }
       .no-print { display: none !important; }
       .print-only { display: block !important; }
-      body { background-color: white !important; color: black !important; font-size: 11pt; width: 100%; }
+      body { background-color: white !important; color: black !important; font-size: 10pt; width: 100%; }
       .print-container { width: 100%; }
       table.print-table { 
         width: 100%; 
         border-collapse: collapse; 
         margin-bottom: 20px; 
-        font-size: 9pt; 
+        font-size: 8pt; 
         table-layout: fixed;
       }
       table.print-table th, table.print-table td { 
         border: 1px solid #000; 
         padding: 4px; 
         text-align: center; 
-        vertical-align: top;
+        vertical-align: middle;
         word-wrap: break-word;
       }
       table.print-table th { background-color: #e0e0e0 !important; font-weight: bold; }
@@ -380,7 +380,7 @@
           <header className="mb-12 text-center mt-12 animate-fade-in-down">
             <div className="inline-flex items-center justify-center p-6 mb-6 bg-blue-600/10 rounded-full ring-1 ring-blue-500/30 shadow-[0_0_60px_rgba(37,99,235,0.15)] backdrop-blur-sm"><Icons.FlaskConical size={64} className="text-blue-400" /></div>
             <h1 className="text-5xl md:text-7xl font-thin tracking-tight text-white mb-2">Laboratório <span className="font-bold text-blue-400 drop-shadow-lg">QGI</span></h1>
-            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V34</span></p>
+            <p className="text-slate-400 text-xl font-light">Gestão Integrada &bull; <span className="text-emerald-400 font-mono text-sm border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/10 inline-flex items-center gap-1"><Icons.Cloud size={12}/> Sync V35</span></p>
             {permission !== 'granted' && <button onClick={requestNotifyPermission} className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-full text-slate-300 transition-all hover:scale-105"><Icons.Bell size={14} /> Ativar Notificações</button>}
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
@@ -775,7 +775,8 @@
 
     // --- ADMINISTRATIVE CALENDAR (ATUALIZADO) ---
     function AdministrativeCalendar({ onBack }) {
-      const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
+      // INICIAR NO DIA DE HOJE
+      const [currentDate, setCurrentDate] = useState(new Date());
       const [events, setEvents] = useSyncedState('calendar_events', {});
       const [selectedDate, setSelectedDate] = useState(null);
       
@@ -809,6 +810,9 @@
       const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
       const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
       const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+      
+      // NOVA FUNÇÃO: IR PARA HOJE
+      const goToToday = () => setCurrentDate(new Date());
 
       const handleDayClick = (dateStr) => {
         if (selectedDate === dateStr) {
@@ -858,6 +862,7 @@
       };
 
       const todayStr = new Date().toISOString().split('T')[0];
+      const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
       const renderCalendar = () => {
         const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
@@ -923,7 +928,15 @@
             </div>
             <div className="flex items-center gap-4 bg-slate-800 p-2 rounded-xl border border-slate-700">
                <button onClick={prevMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronLeft size={20}/></button>
-               <h3 className="text-xl font-bold w-40 text-center">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+               <div className="flex flex-col items-center justify-center w-40">
+                  <h3 className="text-xl font-bold text-center leading-none">{monthNames[currentDate.getMonth()]}</h3>
+                  <span className="text-xs text-slate-400">{currentDate.getFullYear()}</span>
+                  {!isCurrentMonth && (
+                    <button onClick={goToToday} className="mt-1 px-3 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-full uppercase tracking-wider transition-all animate-in fade-in">
+                        Ir para Hoje
+                    </button>
+                  )}
+               </div>
                <button onClick={nextMonth} className="p-2 hover:bg-slate-700 rounded-lg"><Icons.ChevronRight size={20}/></button>
             </div>
           </div>
@@ -1161,6 +1174,47 @@
         setEditingReagent(null);
       };
 
+      const HistoryPrintView = ({ data }) => (
+         <div className="print-only print-container">
+            <h1 className="text-xl font-bold uppercase text-center mb-2">Histórico de Baixas de Reagentes</h1>
+            <div className="text-center text-sm mb-6 pb-2 border-b-2 border-black">
+                Gerado em: {new Date().toLocaleDateString('pt-BR')}
+            </div>
+            <table className="print-table">
+                <thead>
+                    <tr>
+                        <th style={{width: '20%'}}>Item</th>
+                        <th style={{width: '15%'}}>Marca/Lote</th>
+                        <th style={{width: '25%'}}>Especificações</th>
+                        <th style={{width: '15%'}}>Validade/Aber.</th>
+                        <th style={{width: '15%'}}>Motivo</th>
+                        <th style={{width: '10%'}}>Data Baixa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.map(item => (
+                        <tr key={item.id}>
+                            <td className="text-left font-bold">{item.name}</td>
+                            <td>{item.brand}<br/><span className="text-[9px]">Lote: {item.lot}</span></td>
+                            <td className="text-left text-[9px]">
+                                {item.concentration && <div>Conc: <strong>{item.concentration} {item.unit}</strong></div>}
+                                {item.sc && <div>SC: {item.sc}</div>}
+                                {item.reference && <div>Ref: {item.reference}</div>}
+                                {item.usage && <div>Uso: {item.usage}</div>}
+                            </td>
+                            <td className="text-[9px]">
+                                Val: {new Date(item.expiryDate).toLocaleDateString('pt-BR')}<br/>
+                                {item.openingDate && <>Aber: {new Date(item.openingDate).toLocaleDateString('pt-BR')}</>}
+                            </td>
+                            <td>{item.removalReason}</td>
+                            <td>{new Date(item.removedDate).toLocaleDateString('pt-BR')}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+         </div>
+      );
+
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12">
             
@@ -1175,22 +1229,27 @@
               {suggestions.units.map((unit, i) => <option key={i} value={unit} />)}
           </datalist>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          {/* COMPONENTE DE IMPRESSÃO OCULTO */}
+          <HistoryPrintView data={historyList} />
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 no-print">
             <div className="flex items-center gap-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-slate-800 transition-colors"><Icons.ArrowLeft size={24} /></button><div><h2 className="text-3xl font-bold text-white flex items-center gap-3"><Icons.Beaker className="text-emerald-400" /> Reagentes & Padrões</h2><p className="text-slate-400 text-sm">Estoque sincronizado</p></div></div>
             <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700">{['reagent', 'standard', 'history'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>{tab === 'history' ? 'Histórico' : (tab === 'reagent' ? 'Reagentes' : 'Padrões')}</button>)}</div>
             
             {/* BOTÕES DE AÇÃO - REMOVIDO UPLOAD PDF */}
-            {activeTab !== 'history' && (
+            {activeTab !== 'history' ? (
               <div className="flex gap-2">
                 <button onClick={() => { setNewReagent({ type: activeTab }); setShowAddModal(true); }} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all hover:scale-105"><Icons.Plus size={20} /> Novo Item</button>
               </div>
+            ) : (
+              <button onClick={() => window.print()} className="flex items-center gap-2 bg-slate-100 hover:bg-white text-slate-900 px-6 py-3 rounded-xl font-bold shadow-lg transition-all"><Icons.Printer size={20} /> Exportar PDF</button>
             )}
           </div>
 
-          <div className="relative mb-8 max-w-2xl mx-auto"><Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <div className="relative mb-8 max-w-2xl mx-auto no-print"><Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder={`Buscar em ${activeTab}...`} className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           
           {activeTab !== 'history' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 no-print">
               {filteredList.map((item) => { const status = getStatus(item.expiryDate); return (
                 <div key={item.id} className={`relative flex flex-col p-6 rounded-2xl bg-slate-800/40 border ${status.border} backdrop-blur-sm group`}>
                   <div className="flex justify-between items-start mb-4">
@@ -1217,17 +1276,41 @@
               );})}
             </div>
           ) : (
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl no-print">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium"><tr><th className="px-6 py-4">Item</th><th className="px-6 py-4">Marca/Lote</th><th className="px-6 py-4">Motivo</th><th className="px-6 py-4">Data Baixa</th><th className="px-6 py-4 text-right">Ação</th></tr></thead>
+                  <thead className="bg-slate-900/50 uppercase text-slate-400 font-medium">
+                      <tr>
+                          <th className="px-6 py-4">Reagente/Padrão</th>
+                          <th className="px-6 py-4">Detalhes</th>
+                          <th className="px-6 py-4">Datas</th>
+                          <th className="px-6 py-4">Baixa</th>
+                          <th className="px-6 py-4 text-right">Ação</th>
+                      </tr>
+                  </thead>
                   <tbody className="divide-y divide-slate-700">
                     {historyList.map(i => (
                       <tr key={i.id} className="hover:bg-slate-700/30">
-                        <td className="px-6 py-4 font-medium text-white">{i.name}</td>
-                        <td className="px-6 py-4">{i.brand} - {i.lot}</td>
-                        <td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span></td>
-                        <td className="px-6 py-4 font-mono text-slate-400">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</td>
+                        <td className="px-6 py-4">
+                            <div className="font-bold text-white text-base">{i.name}</div>
+                            <span className={`text-[10px] uppercase px-2 py-0.5 rounded-full ${i.type === 'standard' ? 'bg-blue-500/20 text-blue-300' : 'bg-emerald-500/20 text-emerald-300'}`}>{i.type === 'standard' ? 'Padrão' : 'Reagente'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                            <div className="text-white">{i.brand} <span className="text-slate-500 text-xs">({i.lot})</span></div>
+                            <div className="text-xs text-slate-400 mt-1">
+                                {i.concentration && <span>Conc: {i.concentration} {i.unit}<br/></span>}
+                                {i.sc && <span>SC: {i.sc} | </span>}
+                                {i.reference && <span>Ref: {i.reference}</span>}
+                            </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs font-mono text-slate-400">
+                            <div>Val: {new Date(i.expiryDate).toLocaleDateString('pt-BR')}</div>
+                            {i.openingDate && <div className="text-blue-400">Aber: {new Date(i.openingDate).toLocaleDateString('pt-BR')}</div>}
+                        </td>
+                        <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold ${i.removalReason === 'Acabou' ? 'bg-purple-500/20 text-purple-300' : 'bg-red-500/20 text-red-300'}`}>{i.removalReason}</span>
+                            <div className="text-[10px] mt-1 text-slate-500">{new Date(i.removedDate).toLocaleDateString('pt-BR')}</div>
+                        </td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => deleteHistoryItem(i.id)} className="text-slate-500 hover:text-red-400 p-1.5 hover:bg-slate-700 rounded transition-colors"><Icons.Trash2 size={16}/></button>
                         </td>
@@ -1240,7 +1323,7 @@
           )}
 
           {/* MODAL ADICIONAR */}
-          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div>
+          {showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6"><h3 className="text-xl font-bold text-white mb-4">Novo Item</h3><form onSubmit={handleAddReagent} className="space-y-4"><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'reagent'} onChange={() => setNewReagent({...newReagent, type: 'reagent'})} className="accent-emerald-500" /><span className="text-slate-300">Reagente</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="type" checked={newReagent.type === 'standard'} onChange={() => setNewReagent({...newReagent, type: 'standard'})} className="accent-blue-500" /><span className="text-slate-300">Padrão</span></label></div>
           
           <input required list="nameSuggestions" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white" value={newReagent.name || ''} onChange={e => setNewReagent({...newReagent, name: e.target.value})} placeholder="Nome (Ex: Fósforo)" />
           
@@ -1297,7 +1380,7 @@
           
           {/* MODAL EDITAR */}
           {showEditModal && editingReagent && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 no-print">
               <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4">Editar Item</h3>
                 <form onSubmit={handleUpdateReagent} className="space-y-4">
@@ -1366,7 +1449,7 @@
           )}
 
           {/* MODAL DAR BAIXA */}
-          {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
+          {showDeleteModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 no-print"><div className="bg-slate-800 border border-slate-600 w-full max-w-md rounded-2xl shadow-2xl p-6 text-center"><div className="bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Archive size={32} className="text-slate-300" /></div><h3 className="text-xl font-bold text-white mb-2">Dar Baixa no Item?</h3><div className="flex flex-col gap-3 mt-6"><button onClick={() => executeDelete('Acabou')} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.CheckCircle size={18} /> Acabou</button><button onClick={() => executeDelete('Venceu/Descarte')} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium flex items-center justify-center gap-2"><Icons.Trash2 size={18} /> Venceu/Descarte</button><button onClick={() => setShowDeleteModal(false)} className="w-full py-3 text-slate-400 hover:text-white mt-2">Cancelar</button></div></div></div>}
         </div>
       );
     }
@@ -1379,6 +1462,9 @@
       const [newReagent, setNewReagent] = useState({});
       const [showEditModal, setShowEditModal] = useState(false);
       const [editingReagent, setEditingReagent] = useState(null);
+      // NOVA FUNCIONALIDADE: STATUS DO RELATÓRIO
+      const [armyReportsStatus, setArmyReportsStatus] = useSyncedState('army_reports_status', {});
+
       const LAB_UNITS = ['mL', 'L', 'µL', 'g', 'kg', 'mg', 'und', 'fr', 'cx', 'gal'];
       const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -1387,6 +1473,17 @@
       const handleAddReagent = (e) => { e.preventDefault(); if (!newReagent.name) return; const item = { id: 'army_' + Date.now(), name: newReagent.name, quantity: Number(newReagent.quantity) || 0, unit: newReagent.unit || 'mL' }; setArmyReagents([...armyReagents, item]); setShowAddModal(false); setNewReagent({}); };
       const handleUpdateReagent = (e) => { e.preventDefault(); if (!editingReagent.name) return; setArmyReagents(prev => prev.map(r => r.id === editingReagent.id ? editingReagent : r)); setShowEditModal(false); setEditingReagent(null); };
       const removeReagent = (id) => { if(confirm('Remover este item?')) setArmyReagents(prev => prev.filter(r => r.id !== id)); };
+
+      // LÓGICA DO TOGGLE
+      const currentKey = `${selectedMonth}_${selectedYear}`;
+      const isReportSent = armyReportsStatus[currentKey] || false;
+
+      const toggleReportStatus = () => {
+         setArmyReportsStatus({
+             ...armyReportsStatus,
+             [currentKey]: !isReportSent
+         });
+      };
 
       return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 print:bg-white print:text-black print:p-0">
@@ -1397,6 +1494,16 @@
                 </select>
                 <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-24 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500" placeholder="Ano" />
                 
+                <div className="w-px h-6 bg-slate-600 mx-2"></div>
+
+                {/* BOTÃO TOGGLE STATUS RELATÓRIO */}
+                <button 
+                    onClick={toggleReportStatus}
+                    className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg ${isReportSent ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-amber-500/10 text-amber-500 border border-amber-500/30 hover:bg-amber-500/20'}`}
+                >
+                    {isReportSent ? <><Icons.CheckCircle size={16}/> Relatório Enviado</> : <><Icons.Clock size={16}/> Pendente de Envio</>}
+                </button>
+
                 <div className="w-px h-6 bg-slate-600 mx-2"></div>
                 <button onClick={() => setShowAddModal(true)} className="bg-slate-700 text-slate-200 px-3 py-2 rounded-lg font-medium hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm"><Icons.Plus size={16} /> Adicionar Item</button>
                 <button onClick={()=>window.print()} className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-white transition-colors flex items-center gap-2"><Icons.Printer size={18} /> Exportar PDF</button>

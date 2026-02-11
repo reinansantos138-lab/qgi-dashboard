@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qgi-lab-v34-calibration-module';
+const CACHE_NAME = 'qgi-lab-v35-history-update';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
